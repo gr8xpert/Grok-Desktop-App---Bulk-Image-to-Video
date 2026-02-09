@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;">
+  <title>Meta Video Converter</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Animated Background -->
+    <div class="bg-gradient"></div>
+    <div class="bg-noise"></div>
+    <div class="bg-orbs">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Titlebar -->
+    <header class="titlebar">
+      <div class="titlebar-drag">
+        <div class="app-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="23 7 16 12 23 17 23 7"/>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+          <span>Meta Video Converter</span>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-tab="convert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          Convert
+        </button>
+        <button class="nav-tab" data-tab="history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          History
+        </button>
+        <button class="nav-tab" data-tab="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Settings
+        </button>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Convert Tab -->
+      <section class="tab-content active" id="tab-convert">
+        <div class="convert-layout">
+          <!-- Left Panel: Drop Zone & Files -->
+          <div class="panel panel-files">
+            <div class="panel-header">
+              <h2>Input Images</h2>
+              <div class="header-actions">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="includeSubfolders">
+                  <span class="checkbox-custom"></span>
+                  Include subfolders
+                </label>
+              </div>
+            </div>
+
+            <!-- Drop Zone -->
+            <div class="drop-zone" id="dropZone">
+              <div class="drop-zone-content">
+                <div class="drop-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
+                <p class="drop-text">Drop images or folder here</p>
+                <p class="drop-subtext">or click to browse</p>
+                <div class="drop-buttons">
+                  <button class="btn btn-ghost" id="btnSelectFiles">Select Files</button>
+                  <button class="btn btn-ghost" id="btnSelectFolder">Select Folder</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- File Grid -->
+            <div class="file-grid" id="fileGrid">
+              <!-- Populated dynamically -->
+            </div>
+
+            <!-- File Actions -->
+            <div class="file-actions" id="fileActions" style="display: none;">
+              <div class="file-count">
+                <span id="selectedCount">0</span> images selected
+              </div>
+              <button class="btn btn-ghost btn-sm" id="btnClearFiles">Clear All</button>
+            </div>
+          </div>
+
+          <!-- Right Panel: Settings & Actions -->
+          <div class="panel panel-controls">
+            <!-- Output Settings -->
+            <div class="control-section">
+              <h3>Output</h3>
+              <div class="input-group">
+                <label>Output Folder</label>
+                <div class="input-with-btn">
+                  <input type="text" id="outputFolder" placeholder="Select output folder..." readonly>
+                  <button class="btn btn-icon" id="btnSelectOutput">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="input-group">
+                <label>Naming Pattern</label>
+                <input type="text" id="namingPattern" value="{name}.mp4" placeholder="{name}.mp4">
+                <span class="input-hint">Use {name} for original name, {index} for number</span>
+              </div>
+            </div>
+
+            <!-- Animation Settings -->
+            <div class="control-section">
+              <h3>Animation</h3>
+              <div class="input-group">
+                <label>Preset</label>
+                <select id="presetSelect">
+                  <option value="cinematic">Cinematic</option>
+                  <option value="custom">Custom Prompt</option>
+                </select>
+              </div>
+              <div class="input-group" id="customPromptGroup">
+                <label>Custom Prompt</label>
+                <textarea id="customPrompt" rows="3" placeholder="Describe the animation style..."></textarea>
+              </div>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="control-section" id="progressSection" style="display: none;">
+              <h3>Progress</h3>
+              <div class="progress-stats">
+                <div class="stat">
+                  <span class="stat-value" id="progressCompleted">0</span>
+                  <span class="stat-label">Completed</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value" id="progressTotal">0</span>
+                  <span class="stat-label">Total</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value" id="progressEta">--</span>
+                  <span class="stat-label">ETA</span>
+                </div>
+              </div>
+              <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+              </div>
+              <div class="progress-status" id="progressStatus">Preparing...</div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+              <button class="btn btn-primary btn-lg" id="btnStart">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Start Conversion
+              </button>
+              <button class="btn btn-danger btn-lg" id="btnStop" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="6" y="6" width="12" height="12"/>
+                </svg>
+                Stop
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- History Tab -->
+      <section class="tab-content" id="tab-history">
+        <div class="history-container">
+          <div class="history-header">
+            <h2>Conversion History</h2>
+            <div class="history-filters">
+              <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" id="historySearch" placeholder="Search...">
+              </div>
+              <select id="historyFilter">
+                <option value="all">All</option>
+                <option value="success">Success</option>
+                <option value="failed">Failed</option>
+                <option value="skipped">Skipped</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" id="btnClearHistory">Clear History</button>
+            </div>
+          </div>
+          <div class="history-list" id="historyList">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings Tab -->
+      <section class="tab-content" id="tab-settings">
+        <div class="settings-container">
+          <div class="settings-section">
+            <h2>Meta AI Authentication</h2>
+            <p class="settings-desc">Enter your Meta AI cookies to authenticate. Get these from DevTools (F12) → Application → Cookies → meta.ai</p>
+
+            <div class="cookie-status" id="cookieStatus">
+              <div class="status-indicator"></div>
+              <span>Not validated</span>
+            </div>
+
+            <div class="settings-grid">
+              <div class="input-group">
+                <label>datr Cookie <span class="required">*</span></label>
+                <input type="password" id="cookieDatr" placeholder="Enter datr cookie value">
+              </div>
+              <div class="input-group">
+                <label>abra_sess Cookie <span class="required">*</span></label>
+                <input type="password" id="cookieAbraSess" placeholder="Enter abra_sess cookie value">
+              </div>
+              <div class="input-group">
+                <label>wd Cookie</label>
+                <input type="text" id="cookieWd" placeholder="e.g., 1920x1080">
+              </div>
+              <div class="input-group">
+                <label>dpr Cookie</label>
+                <input type="text" id="cookieDpr" placeholder="e.g., 1">
+              </div>
+            </div>
+
+            <button class="btn btn-secondary" id="btnValidateCookies">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              Validate Cookies
+            </button>
+          </div>
+
+          <div class="settings-section">
+            <h2>Conversion Settings</h2>
+
+            <div class="settings-grid">
+              <div class="input-group">
+                <label>Delay Between Files (seconds)</label>
+                <input type="number" id="settingDelay" value="30" min="10" max="120">
+                <span class="input-hint">Recommended: 30-60 seconds to avoid rate limits</span>
+              </div>
+              <div class="input-group">
+                <label>Retry Attempts</label>
+                <input type="number" id="settingRetries" value="3" min="1" max="10">
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="settingHeadless" checked>
+                <span class="checkbox-custom"></span>
+                Headless Mode (faster, no browser window)
+              </label>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="btnSaveSettings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Save Settings
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Video Preview Modal -->
+    <div class="modal" id="videoModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="btnCloseModal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <video id="previewVideo" controls></video>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
