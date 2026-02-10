@@ -60,8 +60,15 @@ class MetaConverter {
     await this.page.goto('https://www.meta.ai', { waitUntil: 'networkidle', timeout: 60000 });
     await this.page.waitForTimeout(2000);
 
-    if (this.page.url().toLowerCase().includes('login')) {
-      throw new Error('Not logged in. Please check your cookies.');
+    const currentUrl = this.page.url();
+    console.log('[BROWSER] Current URL:', currentUrl);
+
+    // Check for various login/auth redirects
+    if (currentUrl.toLowerCase().includes('login') ||
+        currentUrl.toLowerCase().includes('auth') ||
+        currentUrl.toLowerCase().includes('facebook.com') ||
+        currentUrl.toLowerCase().includes('checkpoint')) {
+      throw new Error(`Not logged in. Redirected to: ${currentUrl}`);
     }
 
     console.log('[BROWSER] Ready!');
@@ -86,9 +93,13 @@ class MetaConverter {
   async validateSession() {
     try {
       await this.start();
+      console.log('[VALIDATE] Current URL:', this.page.url());
       return true;
     } catch (e) {
+      console.log('[VALIDATE] Failed:', e.message);
       return false;
+    } finally {
+      await this.stop();
     }
   }
 

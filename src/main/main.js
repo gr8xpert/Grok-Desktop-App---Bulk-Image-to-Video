@@ -158,7 +158,6 @@ ipcMain.handle('validate-cookies', async (event, cookies) => {
   try {
     const testConverter = new MetaConverter(cookies, { headless: true });
     const valid = await testConverter.validateSession();
-    await testConverter.stop();
     return { valid, error: valid ? null : 'Invalid or expired cookies' };
   } catch (e) {
     return { valid: false, error: e.message };
