@@ -13,7 +13,6 @@ class MetaConverter {
     this.context = null;
     this.page = null;
     this._running = false;
-    this._capturedVideoUrls = [];
     this._progressCallback = null;
   }
 
@@ -55,18 +54,6 @@ class MetaConverter {
     await this.context.addCookies(cookieList);
 
     this.page = await this.context.newPage();
-
-    // Capture video URLs from network
-    this._capturedVideoUrls = [];
-    this.page.on('response', (response) => {
-      const url = response.url();
-      if (url.includes('.mp4') && (url.includes('fbcdn') || url.includes('video'))) {
-        if (!this._capturedVideoUrls.includes(url)) {
-          this._capturedVideoUrls.push(url);
-          console.log('[NETWORK] Captured video URL');
-        }
-      }
-    });
 
     // Navigate to Meta AI
     console.log('[BROWSER] Navigating to Meta AI...');
@@ -244,6 +231,21 @@ class MetaConverter {
     const startTime = Date.now();
     let lastLog = 0;
 
+    // Step 1: Capture message container ID for scoped search
+    let messageContainerId = null;
+    try {
+      await this.page.waitForSelector('[data-message-id$="_assistant"]', { timeout: 10000 });
+      await this.page.waitForTimeout(500);
+
+      const lastAssistantMsg = this.page.locator('[data-message-id$="_assistant"]').last();
+      if (await lastAssistantMsg.count() > 0) {
+        messageContainerId = await lastAssistantMsg.getAttribute('data-message-id');
+        console.log(`[VIDEO] Tracking message: ${messageContainerId}`);
+      }
+    } catch (e) {
+      console.log('[VIDEO] Could not capture message ID, using global search');
+    }
+
     while ((Date.now() - startTime) / 1000 < timeout) {
       if (!this._running) return null;
 
@@ -255,70 +257,98 @@ class MetaConverter {
         lastLog = elapsed;
       }
 
-      // PRIORITY 1: Check data-video-url attribute (most reliable)
+      // Minimum wait: 20 seconds for generation to complete
+      if (elapsed < 20) {
+        await this.page.waitForTimeout(2000);
+        continue;
+      }
+
+      // PRIORITY 1: Check data-video-url attribute (scoped)
       try {
-        const videoUrlAttr = await this.page.getAttribute(
-          '[data-testid="generated-video"]',
-          'data-video-url'
-        );
+        let videoUrlAttr = null;
+
+        if (messageContainerId) {
+          const container = this.page.locator(`[data-message-id="${messageContainerId}"]`);
+          const videoElem = container.locator('[data-testid="generated-video"]');
+          if (await videoElem.count() > 0) {
+            videoUrlAttr = await videoElem.getAttribute('data-video-url');
+          }
+        } else {
+          // Fallback: global search only if no container
+          videoUrlAttr = await this.page.getAttribute(
+            '[data-testid="generated-video"]',
+            'data-video-url'
+          );
+        }
+
         if (videoUrlAttr && videoUrlAttr.includes('.mp4')) {
-          // Decode HTML entities (e.g., &amp; -> &)
           const decodedUrl = videoUrlAttr.replace(/&amp;/g, '&');
-          console.log(`[VIDEO] Found via data-video-url attribute! (${elapsed}s)`);
+          console.log(`[VIDEO] Found via data-video-url! (${elapsed}s)`);
+          console.log('[VIDEO] Waiting 2s for CDN stabilization...');
+          await this.page.waitForTimeout(2000);
           return decodedUrl;
         }
       } catch (e) {
-        // Element not found yet, continue waiting
+        // Element not found yet
       }
 
-      // PRIORITY 2: Check network-captured URLs (fallback)
-      if (this._capturedVideoUrls.length > 0) {
-        const url = this._capturedVideoUrls[this._capturedVideoUrls.length - 1];
-        console.log(`[VIDEO] Found via network capture! (${elapsed}s)`);
-        return url;
-      }
-
-      // PRIORITY 3: Check for video element src (fallback)
+      // PRIORITY 2: Search for video URL pattern within scoped container
       try {
-        const videoSelectors = ['video source[src]', 'video[src]', 'video source', 'video'];
+        if (messageContainerId) {
+          const container = this.page.locator(`[data-message-id="${messageContainerId}"]`);
+          const containerHtml = await container.innerHTML();
 
-        for (const selector of videoSelectors) {
-          const videoElem = this.page.locator(selector).first();
-          if (await videoElem.count() > 0) {
-            let src = await videoElem.getAttribute('src');
+          // Match URLs like: https://video-arn2-1.xx.fbcdn.net/...mp4...
+          const videoUrlPattern = /https:\/\/video-[^.]+\.xx\.fbcdn\.net\/[^\s"'<>]+\.mp4[^\s"'<>]*/g;
+          const matches = containerHtml.match(videoUrlPattern);
 
-            if (!src) {
-              const parent = this.page.locator('video').first();
-              if (await parent.count() > 0) {
-                src = await parent.getAttribute('src');
-              }
-            }
-
-            if (src && (src.includes('fbcdn') || src.includes('video')) && src.includes('.mp4')) {
-              console.log(`[VIDEO] Found via ${selector}! (${elapsed}s)`);
-              return src;
-            }
-          }
-        }
-
-        // PRIORITY 4: Check page content (fallback)
-        const content = await this.page.content();
-        const patterns = [
-          /https:\/\/[^\s"'<>]+\.fbcdn\.net[^\s"'<>]+\.mp4[^\s"'<>]*/g,
-          /https:\/\/[^\s"'<>]+fbcdn[^\s"'<>]+\.mp4[^\s"'<>]*/g
-        ];
-
-        for (const pattern of patterns) {
-          const matches = content.match(pattern);
           if (matches && matches.length > 0) {
-            console.log(`[VIDEO] Found in page content! (${elapsed}s)`);
-            return matches[0];
+            // Decode HTML entities
+            const decodedUrl = matches[0].replace(/&amp;/g, '&');
+            console.log(`[VIDEO] Found via container URL pattern! (${elapsed}s)`);
+            await this.page.waitForTimeout(2000);
+            return decodedUrl;
           }
         }
-
       } catch (e) {
-        if (elapsed > 30) {
-          console.log('[VIDEO] Detection error:', e.message);
+        // Pattern not found yet
+      }
+
+      // PRIORITY 3: Click download button and capture download URL (last resort)
+      try {
+        if (messageContainerId && elapsed > 45) {  // Only try after 45s if other methods failed
+          const container = this.page.locator(`[data-message-id="${messageContainerId}"]`);
+
+          // Hover over container to trigger lazy-load of download button
+          await container.hover();
+          await this.page.waitForTimeout(500);
+
+          // Look for download button within the container
+          const downloadBtn = container.locator('[aria-label="Download"]').first();
+          if (await downloadBtn.count() > 0) {
+            console.log(`[VIDEO] Found download button, clicking... (${elapsed}s)`);
+
+            // Set up download listener BEFORE clicking
+            const [download] = await Promise.all([
+              this.page.waitForEvent('download', { timeout: 10000 }),
+              downloadBtn.click()
+            ]);
+
+            // Get URL from the download object
+            const url = download.url();
+            if (url && url.includes('.mp4')) {
+              console.log(`[VIDEO] Captured download URL! (${elapsed}s)`);
+              // Cancel the browser's download since we'll download ourselves
+              await download.cancel();
+              await this.page.waitForTimeout(2000);
+              return url;
+            }
+          }
+        }
+      } catch (e) {
+        // Download button not found or click failed
+        if (elapsed > 50) {
+          console.log('[VIDEO] Download button attempt failed:', e.message);
         }
       }
 
@@ -334,6 +364,8 @@ class MetaConverter {
 
     try {
       const response = await this.page.request.get(videoUrl);
+      console.log(`[DOWNLOAD] HTTP status: ${response.status()}`);
+
       if (response.ok()) {
         const dir = path.dirname(outputPath);
         if (!fs.existsSync(dir)) {
@@ -345,6 +377,8 @@ class MetaConverter {
         const sizeMb = body.length / (1024 * 1024);
         console.log(`[DOWNLOAD] Done (${sizeMb.toFixed(1)} MB)`);
         return true;
+      } else {
+        console.log(`[DOWNLOAD] Failed: HTTP ${response.status()}`);
       }
     } catch (e) {
       console.log('[DOWNLOAD] Error:', e.message);
@@ -396,9 +430,6 @@ class MetaConverter {
           console.log(`[RETRY] Attempt ${attempt}/${this.retryAttempts}`);
           update(`Retry ${attempt}/${this.retryAttempts}...`, 5);
         }
-
-        // Clear captured URLs for new conversion
-        this._capturedVideoUrls = [];
 
         if (!this.browser) {
           update('Starting browser...', 5);
