@@ -453,6 +453,11 @@ ipcMain.handle('retry-download', async (event, { videoUrl, outputPath }) => {
             return;
           }
 
+          if (res.statusCode === 403) {
+            reject(new Error('URL_EXPIRED'));
+            return;
+          }
+
           if (res.statusCode !== 200) {
             reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
             return;
@@ -494,6 +499,12 @@ ipcMain.handle('retry-download', async (event, { videoUrl, outputPath }) => {
     return { success: true };
   } catch (e) {
     console.log('[RETRY-DOWNLOAD] Direct download failed:', e.message);
+
+    // Check if URL expired (403)
+    if (e.message === 'URL_EXPIRED') {
+      return { success: false, error: 'URL expired - needs regeneration', expired: true };
+    }
+
     return { success: false, error: `Download failed: ${e.message}` };
   }
 });
