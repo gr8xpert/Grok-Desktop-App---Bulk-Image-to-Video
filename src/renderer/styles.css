@@ -1270,7 +1270,7 @@ select {
 
 .app-footer {
   position: fixed;
-  bottom: -4px;
+  bottom: 0;
   left: 0;
   right: 0;
   padding: 12px 8px 8px 8px;
