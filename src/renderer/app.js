@@ -368,7 +368,9 @@ function getStatusIcon(status) {
   switch (status) {
     case 'pending': return '○';
     case 'converting': return '◉';
+    case 'downloading': return '↓';
     case 'completed': return '✓';
+    case 'download_failed': return '↓';
     case 'error': return '✕';
     case 'skipped': return '⊘';
     default: return '○';
@@ -467,14 +469,20 @@ function handleProgress(data) {
       break;
 
     case 'file-complete':
-      files[data.index].status = data.success ? 'completed' : 'error';
-      files[data.index].progress = 100;
-      if (data.success) {
+      if (data.downloadFailed) {
+        files[data.index].status = 'download_failed';
+        files[data.index].videoUrl = data.videoUrl;  // Store for retry
         files[data.index].outputPath = data.outputPath;
+      } else if (data.success) {
+        files[data.index].status = 'completed';
+        files[data.index].outputPath = data.outputPath;
+      } else {
+        files[data.index].status = 'error';
       }
+      files[data.index].progress = 100;
 
       // Update progress stats
-      const completed = files.filter(f => f.status === 'completed' || f.status === 'error' || f.status === 'skipped').length;
+      const completed = files.filter(f => f.status === 'completed' || f.status === 'error' || f.status === 'download_failed' || f.status === 'skipped').length;
       elements.progressCompleted.textContent = completed;
 
       // Calculate ETA
@@ -508,9 +516,13 @@ function handleProgress(data) {
 
       const successCount = files.filter(f => f.status === 'completed').length;
       const errorCount = files.filter(f => f.status === 'error').length;
+      const downloadFailedCount = files.filter(f => f.status === 'download_failed').length;
 
-      if (errorCount > 0) {
-        showToast(`Completed with ${errorCount} errors`, 'warning');
+      if (errorCount > 0 || downloadFailedCount > 0) {
+        const issues = [];
+        if (errorCount > 0) issues.push(`${errorCount} error(s)`);
+        if (downloadFailedCount > 0) issues.push(`${downloadFailedCount} download failed`);
+        showToast(`Completed with ${issues.join(', ')}`, 'warning');
       } else {
         showToast(`Successfully converted ${successCount} files!`, 'success');
       }
@@ -593,26 +605,51 @@ async function retryConversion(inputPath) {
   switchTab('convert');
 
   // Update UI
-  renderFiles();
+  renderFileGrid();
   showToast(`Added "${fileName}" for retry`, 'info');
 }
 
 // Retry all failed files in current queue
-function retryFailedFiles() {
-  const failedFiles = files.filter(f => f.status === 'error');
-  if (failedFiles.length === 0) {
+async function retryFailedFiles() {
+  const downloadFailed = files.filter(f => f.status === 'download_failed');
+  const generationFailed = files.filter(f => f.status === 'error');
+
+  if (downloadFailed.length === 0 && generationFailed.length === 0) {
     showToast('No failed files to retry', 'info');
     return;
   }
 
-  // Reset failed files to pending
-  failedFiles.forEach(f => {
-    f.status = 'pending';
-    f.progress = 0;
-  });
+  // Retry downloads first (no regeneration needed)
+  if (downloadFailed.length > 0) {
+    showToast(`Retrying ${downloadFailed.length} download(s)...`, 'info');
 
-  renderFiles();
-  showToast(`${failedFiles.length} file(s) queued for retry`, 'success');
+    for (const file of downloadFailed) {
+      file.status = 'downloading';
+      renderFileGrid();
+
+      const result = await window.api.retryDownload({
+        videoUrl: file.videoUrl,
+        outputPath: file.outputPath
+      });
+
+      file.status = result.success ? 'completed' : 'download_failed';
+      renderFileGrid();
+
+      if (result.success) {
+        showToast(`Downloaded: ${file.name}`, 'success');
+      }
+    }
+  }
+
+  // Then queue generation failures for re-conversion
+  if (generationFailed.length > 0) {
+    generationFailed.forEach(f => {
+      f.status = 'pending';
+      f.progress = 0;
+    });
+    renderFileGrid();
+    showToast(`${generationFailed.length} file(s) queued for re-generation`, 'success');
+  }
 }
 
 // ============================================
