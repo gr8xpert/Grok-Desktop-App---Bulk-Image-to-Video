@@ -637,6 +637,9 @@ async function retryDownloads() {
 
   showToast(`Retrying ${withUrls.length} download(s)...`, 'info');
 
+  let successCount = 0;
+  let expiredCount = 0;
+
   for (const file of withUrls) {
     file.status = 'downloading';
     renderFileGrid();
@@ -653,12 +656,19 @@ async function retryDownloads() {
 
       console.log(`[RETRY] Result:`, result);
 
-      file.status = result.success ? 'completed' : 'download_failed';
-      renderFileGrid();
-
       if (result.success) {
-        showToast(`Downloaded: ${file.name}`, 'success');
+        file.status = 'completed';
+        successCount++;
+        renderFileGrid();
+      } else if (result.expired) {
+        // URL expired - clear it so Retry Generation will pick it up
+        file.status = 'download_failed';
+        file.videoUrl = null;
+        expiredCount++;
+        renderFileGrid();
       } else {
+        file.status = 'download_failed';
+        renderFileGrid();
         showToast(`Failed: ${file.name} - ${result.error || 'Unknown error'}`, 'error');
       }
     } catch (e) {
@@ -667,6 +677,14 @@ async function retryDownloads() {
       renderFileGrid();
       showToast(`Error: ${file.name} - ${e.message}`, 'error');
     }
+  }
+
+  // Summary toast
+  if (successCount > 0) {
+    showToast(`Downloaded ${successCount} file(s) successfully`, 'success');
+  }
+  if (expiredCount > 0) {
+    showToast(`${expiredCount} URL(s) expired - click "Retry Generation"`, 'warning');
   }
 }
 
