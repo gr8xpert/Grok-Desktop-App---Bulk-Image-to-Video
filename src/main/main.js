@@ -403,6 +403,19 @@ ipcMain.handle('retry-download', async (event, { videoUrl, outputPath }) => {
     return { success: false, error: 'No output path specified' };
   }
 
+  // Load cookies from config for authentication
+  let cookies = '';
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const cookieParts = [];
+    if (config.datr) cookieParts.push(`datr=${config.datr}`);
+    if (config.abra_sess) cookieParts.push(`abra_sess=${config.abra_sess}`);
+    cookies = cookieParts.join('; ');
+    console.log('[RETRY-DOWNLOAD] Cookies loaded:', cookies ? 'Yes' : 'No');
+  } catch (e) {
+    console.log('[RETRY-DOWNLOAD] Could not load cookies:', e.message);
+  }
+
   // Try direct download first (faster, no browser needed)
   try {
     const https = require('https');
@@ -412,13 +425,21 @@ ipcMain.handle('retry-download', async (event, { videoUrl, outputPath }) => {
       return new Promise((resolve, reject) => {
         const protocol = url.startsWith('https') ? https : http;
 
-        const req = protocol.get(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': '*/*',
-            'Referer': 'https://www.meta.ai/'
-          }
-        }, (res) => {
+        const headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': '*/*',
+          'Referer': 'https://www.meta.ai/',
+          'Origin': 'https://www.meta.ai'
+        };
+
+        // Add cookies if available
+        if (cookies) {
+          headers['Cookie'] = cookies;
+        }
+
+        const req = protocol.get(url, { headers }, (res) => {
+          console.log(`[RETRY-DOWNLOAD] HTTP ${res.statusCode}`);
+
           // Handle redirects
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
             if (maxRedirects <= 0) {
