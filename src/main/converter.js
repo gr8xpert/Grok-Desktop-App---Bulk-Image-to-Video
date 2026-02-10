@@ -255,14 +255,30 @@ class MetaConverter {
         lastLog = elapsed;
       }
 
-      // Check network-captured URLs first
+      // PRIORITY 1: Check data-video-url attribute (most reliable)
+      try {
+        const videoUrlAttr = await this.page.getAttribute(
+          '[data-testid="generated-video"]',
+          'data-video-url'
+        );
+        if (videoUrlAttr && videoUrlAttr.includes('.mp4')) {
+          // Decode HTML entities (e.g., &amp; -> &)
+          const decodedUrl = videoUrlAttr.replace(/&amp;/g, '&');
+          console.log(`[VIDEO] Found via data-video-url attribute! (${elapsed}s)`);
+          return decodedUrl;
+        }
+      } catch (e) {
+        // Element not found yet, continue waiting
+      }
+
+      // PRIORITY 2: Check network-captured URLs (fallback)
       if (this._capturedVideoUrls.length > 0) {
         const url = this._capturedVideoUrls[this._capturedVideoUrls.length - 1];
         console.log(`[VIDEO] Found via network capture! (${elapsed}s)`);
         return url;
       }
 
-      // Check for video element
+      // PRIORITY 3: Check for video element src (fallback)
       try {
         const videoSelectors = ['video source[src]', 'video[src]', 'video source', 'video'];
 
@@ -285,7 +301,7 @@ class MetaConverter {
           }
         }
 
-        // Check page content
+        // PRIORITY 4: Check page content (fallback)
         const content = await this.page.content();
         const patterns = [
           /https:\/\/[^\s"'<>]+\.fbcdn\.net[^\s"'<>]+\.mp4[^\s"'<>]*/g,
