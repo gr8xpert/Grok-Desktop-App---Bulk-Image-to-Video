@@ -47,7 +47,7 @@ const elements = {
   progressSection: document.getElementById('progressSection'),
   progressCompleted: document.getElementById('progressCompleted'),
   progressTotal: document.getElementById('progressTotal'),
-  progressEta: document.getElementById('progressEta'),
+  progressFailed: document.getElementById('progressFailed'),
   progressBar: document.getElementById('progressBar'),
   progressStatus: document.getElementById('progressStatus'),
 
@@ -436,6 +436,9 @@ async function startConversion() {
     elements.btnStop.style.display = 'block';
     elements.progressSection.style.display = 'block';
     elements.progressTotal.textContent = files.filter(f => f.status === 'pending').length;
+    elements.progressCompleted.textContent = '0';
+    elements.progressFailed.textContent = '0';
+    elements.progressBar.style.width = '0%';
     showToast('Conversion started', 'info');
   } else {
     showToast(result.error || 'Failed to start conversion', 'error');
@@ -484,19 +487,14 @@ function handleProgress(data) {
       files[data.index].progress = 100;
 
       // Update progress stats
-      const completed = files.filter(f => f.status === 'completed' || f.status === 'error' || f.status === 'download_failed' || f.status === 'skipped').length;
+      const completed = files.filter(f => f.status === 'completed' || f.status === 'skipped').length;
+      const failed = files.filter(f => f.status === 'error' || f.status === 'download_failed').length;
       elements.progressCompleted.textContent = completed;
+      elements.progressFailed.textContent = failed;
 
-      // Calculate ETA
-      if (completed > 0) {
-        const remaining = files.length - completed;
-        const avgTime = 90; // Approximate seconds per file
-        const etaSeconds = remaining * avgTime;
-        elements.progressEta.textContent = formatTime(etaSeconds);
-      }
-
-      // Update progress bar
-      const percent = (completed / files.length) * 100;
+      // Update progress bar based on processed files (completed + failed)
+      const processed = completed + failed;
+      const percent = (processed / files.length) * 100;
       elements.progressBar.style.width = `${percent}%`;
 
       renderFileGrid();
