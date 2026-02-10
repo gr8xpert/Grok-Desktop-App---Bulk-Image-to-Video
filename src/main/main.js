@@ -242,10 +242,11 @@ ipcMain.handle('start-conversion', async (event, options) => {
         db.addEntry({
           inputPath: file.path,
           outputPath,
-          status: result.success ? 'success' : 'failed',
+          status: result.success ? 'success' : (result.downloadFailed ? 'download_failed' : 'failed'),
           error: result.error,
           prompt,
-          attempts: result.attempts
+          attempts: result.attempts,
+          videoUrl: result.videoUrl
         });
 
         mainWindow.webContents.send('conversion-progress', {
@@ -253,7 +254,10 @@ ipcMain.handle('start-conversion', async (event, options) => {
           index: i,
           file: file.name,
           success: result.success,
-          error: result.error
+          error: result.error,
+          outputPath,
+          videoUrl: result.videoUrl,
+          downloadFailed: result.downloadFailed
         });
 
         // Delay between files (rate limit protection)
@@ -381,4 +385,29 @@ ipcMain.handle('maximize-window', () => {
 
 ipcMain.handle('close-window', () => {
   mainWindow?.close();
+});
+
+// Retry failed download
+ipcMain.handle('retry-download', async (event, { videoUrl, outputPath }) => {
+  if (!converter) {
+    // Create temporary converter for download retry
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const tempConverter = new MetaConverter({
+      datr: config.datr,
+      abra_sess: config.abra_sess
+    }, { headless: true });
+
+    try {
+      await tempConverter.start();
+      const success = await tempConverter.retryDownload(videoUrl, outputPath);
+      await tempConverter.stop();
+      return { success, error: success ? null : 'Download failed after retries' };
+    } catch (e) {
+      await tempConverter.stop();
+      return { success: false, error: e.message };
+    }
+  }
+
+  const success = await converter.retryDownload(videoUrl, outputPath);
+  return { success, error: success ? null : 'Download failed after retries' };
 });

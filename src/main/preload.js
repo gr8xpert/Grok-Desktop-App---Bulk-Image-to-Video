@@ -38,5 +38,8 @@ contextBridge.exposeInMainWorld('api', {
   // Window controls
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
   maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
-  closeWindow: () => ipcRenderer.invoke('close-window')
+  closeWindow: () => ipcRenderer.invoke('close-window'),
+
+  // Retry download
+  retryDownload: (data) => ipcRenderer.invoke('retry-download', data)
 });

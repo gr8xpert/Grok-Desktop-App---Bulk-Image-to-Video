@@ -337,6 +337,24 @@ class MetaConverter {
     return false;
   }
 
+  async _downloadWithRetry(videoUrl, outputPath, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`[DOWNLOAD] Attempt ${attempt}/${maxRetries}...`);
+      if (await this._downloadVideo(videoUrl, outputPath)) {
+        return true;
+      }
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 2000)); // Wait 2s between retries
+      }
+    }
+    return false;
+  }
+
+  async retryDownload(videoUrl, outputPath) {
+    console.log(`[RETRY] Downloading ${path.basename(outputPath)}...`);
+    return await this._downloadWithRetry(videoUrl, outputPath, 3);
+  }
+
   async convert(imagePath, outputPath, prompt, progressCallback) {
     const result = {
       success: false,
@@ -408,13 +426,21 @@ class MetaConverter {
         result.videoUrl = videoUrl;
 
         update('Downloading...', 85);
-        if (!await this._downloadVideo(videoUrl, outputPath)) {
-          throw new Error('Failed to download video');
-        }
+        const downloadSuccess = await this._downloadWithRetry(videoUrl, outputPath);
 
-        update('Complete!', 100);
-        result.success = true;
-        return result;
+        if (downloadSuccess) {
+          update('Complete!', 100);
+          result.success = true;
+          result.downloadMethod = 'immediate';
+          return result;
+        } else {
+          // Download failed but video was generated
+          result.success = false;
+          result.videoUrl = videoUrl;  // Store URL for retry
+          result.downloadFailed = true; // Flag to distinguish from generation failure
+          result.error = 'Download failed after retries';
+          return result;
+        }
 
       } catch (e) {
         result.error = e.message;

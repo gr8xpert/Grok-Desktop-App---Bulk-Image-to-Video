@@ -497,6 +497,14 @@ body {
   border-color: var(--danger);
 }
 
+.file-card.download_failed {
+  border-color: var(--warning);
+}
+
+.file-card.downloading {
+  border-color: var(--accent-primary);
+}
+
 .file-thumbnail {
   width: 100%;
   height: 100%;
@@ -559,6 +567,17 @@ body {
 .file-status-badge.skipped {
   background: var(--text-muted);
   color: white;
+}
+
+.file-status-badge.download_failed {
+  background: var(--warning);
+  color: white;
+}
+
+.file-status-badge.downloading {
+  background: var(--accent-primary);
+  color: white;
+  animation: pulse 1.5s infinite;
 }
 
 @keyframes pulse {
@@ -995,6 +1014,7 @@ select {
 
 .history-status.success { background: var(--success); }
 .history-status.failed { background: var(--danger); }
+.history-status.download_failed { background: var(--warning); }
 .history-status.skipped { background: var(--text-muted); }
 
 .history-info {
