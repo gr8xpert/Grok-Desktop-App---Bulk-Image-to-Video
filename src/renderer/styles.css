@@ -3013,6 +3013,80 @@ select {
   border-radius: 3px;
 }
 
+/* Timeline Scroll Buttons */
+.timeline-scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.timeline-scroll-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.timeline-scroll-btn:hover {
+  transform: translateY(-50%) scale(1.1);
+}
+
+.timeline-scroll-left {
+  left: 8px;
+}
+
+.timeline-scroll-right {
+  right: 8px;
+}
+
+.timeline-drop-zone:hover .timeline-scroll-btn.visible {
+  opacity: 1;
+}
+
+.timeline-scroll-btn.visible {
+  opacity: 0.8;
+}
+
+/* Timeline Fade Indicators */
+.timeline-fade-left,
+.timeline-fade-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.timeline-fade-left {
+  left: 0;
+  background: linear-gradient(to right, var(--bg-surface) 0%, transparent 100%);
+}
+
+.timeline-fade-right {
+  right: 0;
+  background: linear-gradient(to left, var(--bg-surface) 0%, transparent 100%);
+}
+
+.timeline-fade-left.visible,
+.timeline-fade-right.visible {
+  opacity: 1;
+}
+
 .timeline-empty {
   position: absolute;
   inset: 0;
