@@ -2669,6 +2669,24 @@ function setupVideoEditorEventListeners() {
       document.getElementById(contentId)?.classList.add('collapsed');
     }
   });
+
+  // Timeline scroll buttons
+  const timelineClips = document.getElementById('timelineClips');
+  const scrollLeftBtn = document.getElementById('timelineScrollLeft');
+  const scrollRightBtn = document.getElementById('timelineScrollRight');
+
+  timelineClips?.addEventListener('scroll', updateTimelineScrollIndicators);
+
+  scrollLeftBtn?.addEventListener('click', () => {
+    timelineClips?.scrollBy({ left: -200, behavior: 'smooth' });
+  });
+
+  scrollRightBtn?.addEventListener('click', () => {
+    timelineClips?.scrollBy({ left: 200, behavior: 'smooth' });
+  });
+
+  // Initial check
+  setTimeout(updateTimelineScrollIndicators, 100);
 }
 
 async function addVideoClips() {
@@ -2811,6 +2829,29 @@ function renderTimeline() {
   if (!selectedClipId && videoClips.length > 0) {
     selectClip(videoClips[0].id);
   }
+
+  // Update timeline scroll buttons after a short delay
+  setTimeout(updateTimelineScrollIndicators, 50);
+}
+
+// Update timeline scroll buttons visibility
+function updateTimelineScrollIndicators() {
+  const timelineClips = document.getElementById('timelineClips');
+  const scrollLeftBtn = document.getElementById('timelineScrollLeft');
+  const scrollRightBtn = document.getElementById('timelineScrollRight');
+  const fadeLeft = document.querySelector('.timeline-fade-left');
+  const fadeRight = document.querySelector('.timeline-fade-right');
+
+  if (!timelineClips) return;
+
+  const { scrollLeft, scrollWidth, clientWidth } = timelineClips;
+  const canScrollLeft = scrollLeft > 0;
+  const canScrollRight = scrollLeft < scrollWidth - clientWidth - 5;
+
+  scrollLeftBtn?.classList.toggle('visible', canScrollLeft);
+  scrollRightBtn?.classList.toggle('visible', canScrollRight);
+  fadeLeft?.classList.toggle('visible', canScrollLeft);
+  fadeRight?.classList.toggle('visible', canScrollRight);
 }
 
 function selectClip(clipId) {
