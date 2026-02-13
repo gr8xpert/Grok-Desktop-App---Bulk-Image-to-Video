@@ -442,42 +442,89 @@ class VideoEditor {
 
   // Add background music to video
   async addMusic(videoPath, musicPath, outputPath, options, progressCallback) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const { musicVolume = 70, originalVolume = 100, fade = true } = options;
+
+      // Check if video has audio
+      let videoHasAudio = false;
+      try {
+        const info = await this.getVideoInfo(videoPath);
+        videoHasAudio = info.hasAudio;
+      } catch (e) {
+        console.log('[ADD-MUSIC] Could not get video info, assuming no audio');
+      }
 
       const musicVol = musicVolume / 100;
       const origVol = originalVolume / 100;
 
-      let audioFilter = `[0:a]volume=${origVol}[a1];[1:a]volume=${musicVol}`;
+      let audioFilter;
+      let args;
 
-      if (fade) {
-        audioFilter += ',afade=t=in:d=2,afade=t=out:st=-2:d=2';
+      if (videoHasAudio) {
+        // Mix original audio with music
+        audioFilter = `[0:a]volume=${origVol}[a1];[1:a]volume=${musicVol}`;
+
+        if (fade) {
+          audioFilter += ',afade=t=in:d=2';
+        }
+
+        audioFilter += '[a2];[a1][a2]amix=inputs=2:duration=first[aout]';
+
+        args = [
+          '-y',
+          '-i', videoPath,
+          '-i', musicPath,
+          '-filter_complex', audioFilter,
+          '-map', '0:v',
+          '-map', '[aout]',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '256k',
+          '-shortest',
+          outputPath
+        ];
+      } else {
+        // No original audio - just add music
+        audioFilter = `[1:a]volume=${musicVol}`;
+
+        if (fade) {
+          audioFilter += ',afade=t=in:d=2';
+        }
+
+        audioFilter += '[aout]';
+
+        args = [
+          '-y',
+          '-i', videoPath,
+          '-i', musicPath,
+          '-filter_complex', audioFilter,
+          '-map', '0:v',
+          '-map', '[aout]',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '256k',
+          '-shortest',
+          outputPath
+        ];
       }
 
-      audioFilter += '[a2];[a1][a2]amix=inputs=2:duration=first[aout]';
-
-      const args = [
-        '-y',
-        '-i', videoPath,
-        '-i', musicPath,
-        '-filter_complex', audioFilter,
-        '-map', '0:v',
-        '-map', '[aout]',
-        '-c:v', 'copy',
-        '-c:a', 'aac',
-        '-b:a', '256k',
-        '-shortest',
-        outputPath
-      ];
+      console.log('[ADD-MUSIC] Video has audio:', videoHasAudio);
+      console.log('[ADD-MUSIC] Command:', args.join(' '));
 
       this.currentProcess = spawn(this.ffmpegPath || 'ffmpeg', args);
+
+      let stderr = '';
+      this.currentProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
 
       this.currentProcess.on('close', (code) => {
         this.currentProcess = null;
         if (code === 0) {
           resolve({ success: true, outputPath });
         } else {
-          reject(new Error('Failed to add music'));
+          console.error('[ADD-MUSIC] FFmpeg error:', stderr.slice(-500));
+          reject(new Error('Failed to add music: ' + stderr.slice(-200)));
         }
       });
 
