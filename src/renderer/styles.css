@@ -632,21 +632,21 @@ body {
    ============================================ */
 
 .panel-controls {
-  padding: var(--space-lg);
-  gap: var(--space-lg);
+  padding: var(--space-md);
+  gap: var(--space-sm);
 }
 
 .control-section {
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-sm);
 }
 
 .control-section h3 {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-xs);
 }
 
 /* ============================================
@@ -654,7 +654,7 @@ body {
    ============================================ */
 
 .input-group {
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-sm);
 }
 
 .input-group:last-child {
@@ -3383,6 +3383,29 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .music-file span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voiceover-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.voiceover-file svg {
+  color: var(--accent-secondary);
+}
+
+.voiceover-file span {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
