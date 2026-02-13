@@ -161,14 +161,6 @@ const elements = {
   resizeLock: document.getElementById('resizeLock'),
   btnApplyResize: document.getElementById('btnApplyResize'),
 
-  // Upscale
-  realesrganStatus: document.getElementById('realesrganStatus'),
-  aiUpscaleButtons: document.getElementById('aiUpscaleButtons'),
-  btnInstallRealesrgan: document.getElementById('btnInstallRealesrgan'),
-  realesrganProgress: document.getElementById('realesrganProgress'),
-  realesrganProgressBar: document.getElementById('realesrganProgressBar'),
-  realesrganProgressText: document.getElementById('realesrganProgressText'),
-
   // Export
   exportFormat: document.getElementById('exportFormat'),
   exportQuality: document.getElementById('exportQuality'),
@@ -229,14 +221,11 @@ let editorEdits = {
   rotation: 0,
   flipH: false,
   flipV: false,
-  watermark: null,  // { text, fontSize, opacity, color }
-  upscaleScale: null,  // 2, 3, or 4 for basic upscale
-  aiUpscaleTempPath: null  // temp file path from AI upscale
+  watermark: null  // { text, fontSize, opacity, color }
 };
 let editorPreviewTimeout = null;
 let editorPresets = {};
 let resizeAspectLocked = true;
-let realesrganInstalled = false;
 
 // Bulk Upscale State
 let upscaleFiles = [];           // Array of { id, name, path, status, progress, thumbnail }
@@ -1641,9 +1630,6 @@ async function openImageEditor(imagePath) {
       elements.resizeWidth.value = result.width;
       elements.resizeHeight.value = result.height;
 
-      // Check Real-ESRGAN status
-      checkRealesrganStatus();
-
       // Load presets
       loadEditorPresets();
     } else {
@@ -1682,9 +1668,7 @@ function resetEditorState() {
     rotation: 0,
     flipH: false,
     flipV: false,
-    watermark: null,
-    upscaleScale: null,
-    aiUpscaleTempPath: null
+    watermark: null
   };
 
   // Reset sliders
@@ -1947,88 +1931,6 @@ async function applyResize() {
   }
 }
 
-// Upscale Functions
-async function checkRealesrganStatus() {
-  const result = await window.api.checkRealesrgan();
-  realesrganInstalled = result.installed;
-
-  if (result.installed) {
-    elements.realesrganStatus.innerHTML = '<span class="status-installed">✓ Real-ESRGAN ready</span>';
-    elements.aiUpscaleButtons.style.display = 'flex';
-    elements.btnInstallRealesrgan.style.display = 'none';
-  } else {
-    elements.realesrganStatus.innerHTML = '<span class="status-not-installed">⚠ Real-ESRGAN not found</span>';
-    elements.aiUpscaleButtons.style.display = 'none';
-    elements.btnInstallRealesrgan.style.display = 'none'; // Bundled, so no install option
-  }
-}
-
-async function installRealesrgan() {
-  elements.btnInstallRealesrgan.style.display = 'none';
-  elements.realesrganProgress.style.display = 'block';
-
-  const result = await window.api.installRealesrgan();
-
-  if (result.success) {
-    showToast('Real-ESRGAN installed successfully!', 'success');
-    checkRealesrganStatus();
-  } else {
-    showToast('Installation failed: ' + result.error, 'error');
-    elements.btnInstallRealesrgan.style.display = 'block';
-  }
-
-  elements.realesrganProgress.style.display = 'none';
-}
-
-async function upscaleImage(scale, method) {
-  if (!editorImagePath) {
-    showToast('No image loaded', 'error');
-    return;
-  }
-
-  showEditorLoading(true);
-  showToast(`Upscaling ${scale}x (${method})... This may take a moment.`, 'info');
-
-  console.log('[UPSCALE] Starting:', { scale, method, path: editorImagePath });
-
-  try {
-    let result;
-    if (method === 'ai') {
-      // AI upscale saves to temp file for preview
-      result = await window.api.upscaleAI({ imagePath: editorImagePath, scale });
-      if (result.success && result.tempPath) {
-        editorEdits.aiUpscaleTempPath = result.tempPath; // Track temp file for saving
-        editorEdits.upscaleScale = null; // Clear basic upscale if any
-      }
-    } else {
-      // Basic upscale is preview only - will be applied on Save
-      result = await window.api.upscaleBasic({ imagePath: editorImagePath, scale });
-      if (result.success) {
-        editorEdits.upscaleScale = scale; // Track for saving later
-        editorEdits.aiUpscaleTempPath = null; // Clear AI upscale if any
-      }
-    }
-
-    console.log('[UPSCALE] Result:', result);
-
-    if (result.success) {
-      elements.editorPreviewImage.src = result.base64;
-      if (result.width && result.height) {
-        elements.editorImageInfo.textContent = `${result.width} x ${result.height}`;
-      }
-      showToast(`Upscaled to ${scale}x successfully! (click Save to keep)`, 'success');
-    } else {
-      showToast('Upscale failed: ' + (result.error || 'Unknown error'), 'error');
-      console.error('[UPSCALE] Error:', result.error);
-    }
-  } catch (e) {
-    showToast('Upscale error: ' + e.message, 'error');
-    console.error('[UPSCALE] Exception:', e);
-  } finally {
-    showEditorLoading(false);
-  }
-}
-
 // Watermark
 async function applyWatermark() {
   const text = elements.watermarkText.value.trim();
@@ -2219,23 +2121,6 @@ function setupImageEditorEventListeners() {
   });
 
   elements.btnApplyResize.addEventListener('click', applyResize);
-
-  // Upscale
-  document.querySelectorAll('.upscale-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const scale = parseInt(btn.dataset.scale);
-      const method = btn.dataset.method;
-      upscaleImage(scale, method);
-    });
-  });
-
-  elements.btnInstallRealesrgan.addEventListener('click', installRealesrgan);
-
-  // Real-ESRGAN progress listener
-  window.api.onRealesrganProgress((data) => {
-    elements.realesrganProgressBar.style.width = `${data.percent}%`;
-    elements.realesrganProgressText.textContent = data.stage;
-  });
 
   // Export quality
   elements.exportQuality.addEventListener('input', () => {
