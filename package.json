@@ -1,6 +1,6 @@
 {
   "name": "meta-video-converter",
-  "version": "3.22.0",
+  "version": "3.23.0",
   "description": "Convert images to AI-animated videos using Meta AI",
   "main": "src/main/main.js",
   "scripts": {
@@ -28,7 +28,8 @@
     "files": [
       "src/**/*",
       "assets/**/*",
-      "!assets/realesrgan/**/*"
+      "!assets/realesrgan/**/*",
+      "!assets/ffmpeg/**/*"
     ],
     "asarUnpack": [
       "assets/realesrgan/**/*"
@@ -37,6 +38,11 @@
       {
         "from": "assets/realesrgan",
         "to": "realesrgan",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "assets/ffmpeg",
+        "to": "ffmpeg",
         "filter": ["**/*"]
       }
     ],

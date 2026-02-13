@@ -6,6 +6,8 @@ const { execFile } = require('child_process');
 const sharp = require('sharp');
 const { MetaConverter } = require('./converter');
 const { Database } = require('./database');
+const VideoEditor = require('./video-editor');
+const CaptionGenerator = require('./captions');
 
 // Real-ESRGAN paths (bundled with app)
 // In packaged app, assets are in extraResources at resources/realesrgan/
@@ -46,6 +48,8 @@ const presetsPath = path.join(app.getPath('userData'), 'editing-presets.json');
 let mainWindow;
 let converter = null;
 let db = null;
+let videoEditor = null;
+let captionGenerator = null;
 
 // Config file path
 const configPath = path.join(app.getPath('userData'), 'config.json');
@@ -72,7 +76,7 @@ function createWindow() {
   // mainWindow.webContents.openDevTools();
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Initialize Real-ESRGAN paths
   realesrganDir = getRealesrganPath();
   realesrganExe = path.join(realesrganDir, 'realesrgan-ncnn-vulkan.exe');
@@ -82,6 +86,12 @@ app.whenReady().then(() => {
 
   // Initialize database
   db = new Database(dbPath);
+
+  // Initialize video editor
+  videoEditor = new VideoEditor();
+  captionGenerator = new CaptionGenerator();
+  const ffmpegAvailable = await videoEditor.init();
+  console.log('[VIDEO-EDITOR] FFmpeg available:', ffmpegAvailable);
 
   createWindow();
 
@@ -1817,32 +1827,249 @@ ipcMain.handle('select-audio', async () => {
 // Get video info (duration, thumbnail)
 ipcMain.handle('get-video-info', async (event, videoPath) => {
   try {
-    // For now, return basic info
-    // TODO: Use FFprobe to get actual duration and generate thumbnail
+    if (!videoEditor || !videoEditor.isAvailable()) {
+      console.log('[VIDEO-INFO] FFmpeg not available');
+      return { duration: 0, thumbnail: '' };
+    }
+
+    // Get video info using FFprobe
+    const info = await videoEditor.getVideoInfo(videoPath);
+    console.log('[VIDEO-INFO]', path.basename(videoPath), '- Duration:', info.duration);
+
+    // Generate thumbnail
+    const tempDir = app.getPath('temp');
+    const thumbnailPath = path.join(tempDir, `thumb_${Date.now()}.jpg`);
+    const thumbnail = await videoEditor.generateThumbnail(videoPath, thumbnailPath, 1);
+
     return {
-      duration: 0,
-      thumbnail: ''
+      duration: info.duration || 0,
+      width: info.width,
+      height: info.height,
+      fps: info.fps,
+      hasAudio: info.hasAudio,
+      thumbnail: thumbnail || ''
     };
   } catch (e) {
-    console.error('Error getting video info:', e);
-    return null;
+    console.error('[VIDEO-INFO] Error:', e.message);
+    return { duration: 0, thumbnail: '' };
   }
 });
 
-// Generate captions using Whisper
-ipcMain.handle('generate-captions', async (event, videoPaths) => {
-  // TODO: Implement Whisper integration
-  return { success: false, error: 'Whisper not yet implemented' };
+// Generate captions using SRT or manual input
+// (Whisper requires Python - for now we support SRT import)
+ipcMain.handle('generate-captions', async (event, options) => {
+  const { videoPaths, method, srtPath } = options;
+
+  try {
+    if (method === 'import' && srtPath) {
+      // Import from SRT file
+      const srtContent = fs.readFileSync(srtPath, 'utf-8');
+      const captionData = captionGenerator.parseSRT(srtContent);
+      return { success: true, captionData };
+    }
+
+    // For now, return a placeholder - Whisper integration requires more setup
+    return {
+      success: false,
+      error: 'AI caption generation requires Whisper. For now, please import an SRT file.'
+    };
+  } catch (e) {
+    console.error('[CAPTIONS] Error:', e.message);
+    return { success: false, error: e.message };
+  }
 });
 
-// Export video
+// Import SRT file
+ipcMain.handle('import-srt', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'Subtitles', extensions: ['srt', 'ass', 'ssa', 'vtt'] }
+    ]
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false };
+  }
+
+  try {
+    const content = fs.readFileSync(result.filePaths[0], 'utf-8');
+    const captionData = captionGenerator.parseSRT(content);
+    return { success: true, captionData, filePath: result.filePaths[0] };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+// Get caption templates
+ipcMain.handle('get-caption-templates', async () => {
+  return captionGenerator.getTemplates();
+});
+
+// Export video with all edits
 ipcMain.handle('export-video', async (event, options) => {
-  // TODO: Implement FFmpeg video export
-  return { success: false, error: 'FFmpeg export not yet implemented' };
+  const { clips, transition, captions, captionSettings, music, musicOptions, outputFolder, resolution, quality } = options;
+
+  if (!videoEditor || !videoEditor.isAvailable()) {
+    return { success: false, error: 'FFmpeg is not available. Please install FFmpeg.' };
+  }
+
+  try {
+    const timestamp = Date.now();
+    let outputPath = path.join(outputFolder, `edited_video_${timestamp}.mp4`);
+    let currentVideoPath = null;
+
+    // Step 1: Merge clips with transitions
+    mainWindow.webContents.send('video-export-progress', {
+      stage: 'Merging clips...',
+      percent: 10
+    });
+
+    if (clips && clips.length > 0) {
+      const mergeResult = await videoEditor.mergeVideos(
+        clips,
+        transition || { style: 'none', duration: 1 },
+        outputPath,
+        (progress) => {
+          mainWindow.webContents.send('video-export-progress', {
+            stage: progress.status,
+            percent: 10 + (progress.percent * 0.4) // 10-50%
+          });
+        }
+      );
+
+      if (!mergeResult.success) {
+        return { success: false, error: 'Failed to merge clips' };
+      }
+      currentVideoPath = mergeResult.outputPath;
+    } else {
+      return { success: false, error: 'No clips to export' };
+    }
+
+    // Step 2: Add captions if enabled
+    if (captions && captions.segments && captions.segments.length > 0 && captionSettings) {
+      mainWindow.webContents.send('video-export-progress', {
+        stage: 'Adding captions...',
+        percent: 55
+      });
+
+      // Generate ASS file
+      const assPath = path.join(app.getPath('temp'), `captions_${timestamp}.ass`);
+      captionGenerator.generateASS(captions, captionSettings, assPath);
+
+      // Burn captions into video
+      const captionedPath = path.join(outputFolder, `captioned_${timestamp}.mp4`);
+      const captionResult = await videoEditor.burnCaptions(
+        currentVideoPath,
+        assPath,
+        captionedPath,
+        (progress) => {
+          mainWindow.webContents.send('video-export-progress', {
+            stage: progress.status,
+            percent: 55 + (progress.percent * 0.2) // 55-75%
+          });
+        }
+      );
+
+      // Clean up temp files
+      try { fs.unlinkSync(assPath); } catch (e) {}
+      if (currentVideoPath !== outputPath) {
+        try { fs.unlinkSync(currentVideoPath); } catch (e) {}
+      }
+
+      if (!captionResult.success) {
+        return { success: false, error: 'Failed to add captions' };
+      }
+      currentVideoPath = captionResult.outputPath;
+    }
+
+    // Step 3: Add background music if provided
+    if (music && music.path) {
+      mainWindow.webContents.send('video-export-progress', {
+        stage: 'Adding music...',
+        percent: 80
+      });
+
+      const musicPath = path.join(outputFolder, `final_${timestamp}.mp4`);
+      const musicResult = await videoEditor.addMusic(
+        currentVideoPath,
+        music.path,
+        musicPath,
+        musicOptions || { musicVolume: 70, originalVolume: 100, fade: true },
+        (progress) => {
+          mainWindow.webContents.send('video-export-progress', {
+            stage: progress.status,
+            percent: 80 + (progress.percent * 0.15) // 80-95%
+          });
+        }
+      );
+
+      // Clean up previous video if not the original output
+      if (currentVideoPath !== outputPath) {
+        try { fs.unlinkSync(currentVideoPath); } catch (e) {}
+      }
+
+      if (!musicResult.success) {
+        return { success: false, error: 'Failed to add music' };
+      }
+      currentVideoPath = musicResult.outputPath;
+    }
+
+    // Step 4: Change resolution if needed
+    if (resolution && resolution !== 'original') {
+      mainWindow.webContents.send('video-export-progress', {
+        stage: 'Adjusting resolution...',
+        percent: 95
+      });
+
+      const finalPath = path.join(outputFolder, `final_${resolution}p_${timestamp}.mp4`);
+      const resResult = await videoEditor.changeResolution(
+        currentVideoPath,
+        finalPath,
+        resolution,
+        quality || 'medium'
+      );
+
+      // Clean up previous
+      if (currentVideoPath !== outputPath) {
+        try { fs.unlinkSync(currentVideoPath); } catch (e) {}
+      }
+
+      if (!resResult.success) {
+        return { success: false, error: 'Failed to change resolution' };
+      }
+      currentVideoPath = resResult.outputPath;
+    }
+
+    mainWindow.webContents.send('video-export-progress', {
+      stage: 'Complete!',
+      percent: 100
+    });
+
+    // Show notification
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'Meta Video Converter',
+        body: 'Video export completed!'
+      }).show();
+    }
+
+    return { success: true, outputPath: currentVideoPath };
+  } catch (e) {
+    console.error('[VIDEO-EXPORT] Error:', e);
+    return { success: false, error: e.message };
+  }
 });
 
 // Cancel video export
 ipcMain.handle('cancel-video-export', async () => {
-  // TODO: Implement export cancellation
+  if (videoEditor) {
+    videoEditor.cancel();
+  }
   return { success: true };
+});
+
+// Check if FFmpeg is available
+ipcMain.handle('check-ffmpeg', async () => {
+  return { available: videoEditor && videoEditor.isAvailable() };
 });

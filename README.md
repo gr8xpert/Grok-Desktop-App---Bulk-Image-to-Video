@@ -1,6 +1,6 @@
-# Meta Video Converter v3.22.0
+# Meta Video Converter v3.23.0
 
-A powerful desktop application that converts images to AI-animated videos, generates images from text prompts, provides advanced image editing capabilities, and bulk upscaling using AI.
+A powerful desktop application that converts images to AI-animated videos, generates images from text prompts, provides advanced image editing capabilities, video editing with transitions/captions/music, and bulk upscaling using AI.
 
 ## Features
 
@@ -64,7 +64,30 @@ Full-featured image editor accessible from the Gallery:
 - **Load Presets**: Quickly apply saved settings
 - **Before/After**: Compare slider to see original vs edited
 
-### Bulk Upscale (NEW in v3.22.0)
+### Video Editor (NEW in v3.23.0)
+Powerful video editing with timeline, transitions, captions, and background music:
+
+- **Drag & Drop Timeline**: Arrange video clips visually
+- **Video Transitions**: Fade, dissolve, wipe, slide, and more
+- **Styled Captions**: 8 caption templates (Minimal, Bold Pop, Hormozi, Karaoke, etc.)
+- **Import Captions**: Load from SRT files
+- **Background Music**: Add music with volume control and fade in/out
+- **Export Options**: Multiple resolution and quality settings
+- **Real-time Preview**: Preview clips before export
+
+#### Caption Templates
+| Template | Description |
+|----------|-------------|
+| Minimal | Clean, simple white text |
+| Bold Pop | Large, bold text with pop animation |
+| Highlight | Word highlighting effect |
+| Box Background | Text with opaque background box |
+| Hormozi Style | Large impact font, center screen |
+| Karaoke | Word-by-word highlight timing |
+| Outline | Thick outline for readability |
+| Gradient | Colorful gradient text effect |
+
+### Bulk Upscale
 Dedicated tab for batch AI upscaling multiple images:
 
 - **Drag & Drop**: Add multiple images at once
@@ -146,6 +169,15 @@ To use the image/video generation features, you need to provide your Meta AI coo
 4. **Set Output**: Choose output folder and format
 5. **Start**: Click "Start Upscaling"
 
+### Video Editing
+1. **Go to "Video Editor" tab**
+2. **Add Clips**: Drag & drop videos or click "Add Videos"
+3. **Arrange Timeline**: Drag clips to reorder
+4. **Add Transitions**: Choose transition style and duration
+5. **Add Captions**: Import SRT file and select template
+6. **Add Music**: Select background music and adjust volumes
+7. **Export**: Choose resolution/quality and click "Export Video"
+
 ### Image Editing
 1. **Go to "Gallery" tab**
 2. **Click Edit**: Hover over an image and click the edit (pencil) icon
@@ -187,6 +219,7 @@ To use the image/video generation features, you need to provide your Meta AI coo
 - **Electron** - Desktop application framework
 - **Playwright** - Browser automation for Meta AI interaction
 - **Sharp** - Image processing and manipulation
+- **FFmpeg** - Video processing (merging, transitions, captions)
 - **Real-ESRGAN** - AI-powered image upscaling
 - **SQLite** - Local database for history
 - **Node.js** - Backend runtime
@@ -197,13 +230,16 @@ To use the image/video generation features, you need to provide your Meta AI coo
 meta-video-converter-electron/
 ├── assets/
 │   ├── realesrgan/          # Real-ESRGAN binaries and models
+│   ├── ffmpeg/              # FFmpeg binaries (ffmpeg.exe, ffprobe.exe)
 │   └── icon.ico             # App icon
 ├── src/
 │   ├── main/
 │   │   ├── main.js          # Electron main process & IPC handlers
 │   │   ├── preload.js       # Preload script for IPC bridge
 │   │   ├── converter.js     # Meta AI automation logic
-│   │   └── database.js      # SQLite database for history
+│   │   ├── database.js      # SQLite database for history
+│   │   ├── video-editor.js  # FFmpeg video processing
+│   │   └── captions.js      # Caption generation & styling
 │   └── renderer/
 │       ├── index.html       # Main UI with all tabs
 │       ├── app.js           # Renderer process logic
@@ -214,6 +250,16 @@ meta-video-converter-electron/
 ```
 
 ## Changelog
+
+### v3.23.0
+- Added **Video Editor** tab for editing videos with transitions
+- **Timeline**: Drag & drop clips with visual arrangement
+- **Transitions**: 10+ transition styles (fade, dissolve, wipe, etc.)
+- **Styled Captions**: 8 professional caption templates
+- **Import SRT**: Load existing subtitle files
+- **Background Music**: Add music with volume control and fade
+- **Export**: Multiple resolution and quality options
+- Requires FFmpeg (place in assets/ffmpeg or system PATH)
 
 ### v3.22.0
 - Added **Bulk Upscale** tab for batch AI image upscaling
@@ -266,6 +312,12 @@ meta-video-converter-electron/
 - Real-ESRGAN binaries are bundled with the app
 - Make sure the `assets/realesrgan` folder contains the executable
 - Check that your GPU drivers are up to date (Vulkan support required)
+
+### Video Editor Not Working
+- FFmpeg is required for video editing features
+- Download FFmpeg from: https://www.gyan.dev/ffmpeg/builds/
+- Place `ffmpeg.exe` and `ffprobe.exe` in `assets/ffmpeg/`
+- Or install FFmpeg system-wide and add to PATH
 
 ### Video Not Downloading
 - The app uses multiple fallback download methods
