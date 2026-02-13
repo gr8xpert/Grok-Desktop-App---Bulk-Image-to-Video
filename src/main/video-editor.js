@@ -532,35 +532,77 @@ class VideoEditor {
     });
   }
 
-  // Burn captions into video
-  async burnCaptions(videoPath, captionsPath, outputPath, progressCallback) {
-    return new Promise((resolve, reject) => {
-      // Escape path for FFmpeg filter
-      const escapedCaptions = captionsPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+  // Add voice over to video
+  async addVoiceover(videoPath, voiceoverPath, outputPath, options, progressCallback) {
+    return new Promise(async (resolve, reject) => {
+      const { volume = 100, replaceOriginal = false } = options;
 
-      const args = [
-        '-y',
-        '-i', videoPath,
-        '-vf', `ass='${escapedCaptions}'`,
-        '-c:v', 'libx264',
-        '-profile:v', 'high',
-        '-level', '4.1',
-        '-pix_fmt', 'yuv420p',
-        '-preset', 'slow',
-        '-crf', '18',
-        '-c:a', 'copy',
-        '-movflags', '+faststart',
-        outputPath
-      ];
+      // Check if video has audio
+      let videoHasAudio = false;
+      try {
+        const info = await this.getVideoInfo(videoPath);
+        videoHasAudio = info.hasAudio;
+      } catch (e) {
+        console.log('[ADD-VOICEOVER] Could not get video info, assuming no audio');
+      }
+
+      const voiceVol = volume / 100;
+      let audioFilter;
+      let args;
+
+      if (replaceOriginal || !videoHasAudio) {
+        // Replace original audio with voiceover (or no original audio)
+        audioFilter = `[1:a]volume=${voiceVol}[aout]`;
+
+        args = [
+          '-y',
+          '-i', videoPath,
+          '-i', voiceoverPath,
+          '-filter_complex', audioFilter,
+          '-map', '0:v',
+          '-map', '[aout]',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '256k',
+          '-shortest',
+          outputPath
+        ];
+      } else {
+        // Mix original audio with voiceover at lower volume
+        audioFilter = `[0:a]volume=0.3[a1];[1:a]volume=${voiceVol}[a2];[a1][a2]amix=inputs=2:duration=first[aout]`;
+
+        args = [
+          '-y',
+          '-i', videoPath,
+          '-i', voiceoverPath,
+          '-filter_complex', audioFilter,
+          '-map', '0:v',
+          '-map', '[aout]',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '256k',
+          '-shortest',
+          outputPath
+        ];
+      }
+
+      console.log('[ADD-VOICEOVER] Replace original:', replaceOriginal);
+      console.log('[ADD-VOICEOVER] Command:', args.join(' '));
 
       this.currentProcess = spawn(this.ffmpegPath || 'ffmpeg', args);
+
+      let stderr = '';
+      this.currentProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
 
       this.currentProcess.on('close', (code) => {
         this.currentProcess = null;
         if (code === 0) {
           resolve({ success: true, outputPath });
         } else {
-          reject(new Error('Failed to burn captions'));
+          console.error('[ADD-VOICEOVER] FFmpeg error:', stderr.slice(-500));
+          reject(new Error('Failed to add voice over: ' + stderr.slice(-200)));
         }
       });
 

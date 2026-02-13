@@ -1,6 +1,6 @@
-# Meta Video Converter v3.23.0
+# Meta Video Converter v3.27.0
 
-A powerful desktop application that converts images to AI-animated videos, generates images from text prompts, provides advanced image editing capabilities, video editing with transitions/captions/music, and bulk upscaling using AI.
+A powerful desktop application that converts images to AI-animated videos, generates images from text prompts, provides advanced image editing capabilities, video editing with transitions/voice over/music, and bulk upscaling using AI.
 
 ## Features
 
@@ -10,6 +10,7 @@ A powerful desktop application that converts images to AI-animated videos, gener
 - **Animation Presets**: Multiple built-in presets (Cinematic, Zoom, Pan, Parallax, etc.)
 - **Custom Prompts**: Create your own animation styles with custom prompts
 - **Progress Tracking**: Real-time progress tracking with file-by-file status
+- **Auto-add to Editor**: Optionally send converted videos directly to Video Editor
 - **Conversion History**: Track all conversions with retry option for failed ones
 - **Headless Mode**: Run conversions in the background without browser window
 - **Resume Support**: Continue interrupted conversions
@@ -22,6 +23,7 @@ A powerful desktop application that converts images to AI-animated videos, gener
 - **Bulk Generation**: Queue multiple prompts and generate them all at once
 - **Import Prompts**: Load prompts from a .txt file for batch processing
 - **Optional Video Conversion**: Automatically convert generated images to videos
+- **Auto-add to Editor**: Send generated videos directly to Video Editor timeline
 
 ### Gallery
 - **Media Browser**: View all generated images and videos in one place
@@ -64,28 +66,17 @@ Full-featured image editor accessible from the Gallery:
 - **Load Presets**: Quickly apply saved settings
 - **Before/After**: Compare slider to see original vs edited
 
-### Video Editor (NEW in v3.23.0)
-Powerful video editing with timeline, transitions, captions, and background music:
+### Video Editor
+Powerful video editing with timeline, transitions, voice over, and background music:
 
-- **Drag & Drop Timeline**: Arrange video clips visually
+- **Drag & Drop Timeline**: Arrange video clips visually with scroll navigation
 - **Video Transitions**: Fade, dissolve, wipe, slide, and more
-- **Styled Captions**: 8 caption templates (Minimal, Bold Pop, Hormozi, Karaoke, etc.)
-- **Import Captions**: Load from SRT files
+- **Voice Over**: Add voice over audio with volume control and option to replace original audio
 - **Background Music**: Add music with volume control and fade in/out
-- **Export Options**: Multiple resolution and quality settings
+- **Auto-add from Conversion**: Automatically add converted videos to timeline
+- **Export Options**: High quality export with Windows Media Player compatibility
 - **Real-time Preview**: Preview clips before export
-
-#### Caption Templates
-| Template | Description |
-|----------|-------------|
-| Minimal | Clean, simple white text |
-| Bold Pop | Large, bold text with pop animation |
-| Highlight | Word highlighting effect |
-| Box Background | Text with opaque background box |
-| Hormozi Style | Large impact font, center screen |
-| Karaoke | Word-by-word highlight timing |
-| Outline | Thick outline for readability |
-| Gradient | Colorful gradient text effect |
+- **Remembers Settings**: Output folder persists between sessions
 
 ### Bulk Upscale
 Dedicated tab for batch AI upscaling multiple images:
@@ -171,12 +162,12 @@ To use the image/video generation features, you need to provide your Meta AI coo
 
 ### Video Editing
 1. **Go to "Video Editor" tab**
-2. **Add Clips**: Drag & drop videos or click "Add Videos"
-3. **Arrange Timeline**: Drag clips to reorder
+2. **Add Clips**: Drag & drop videos or click "Add Videos" (or use auto-add from conversion)
+3. **Arrange Timeline**: Drag clips to reorder, use scroll buttons for long timelines
 4. **Add Transitions**: Choose transition style and duration
-5. **Add Captions**: Import SRT file and select template
+5. **Add Voice Over**: Select voice over audio file and adjust volume
 6. **Add Music**: Select background music and adjust volumes
-7. **Export**: Choose resolution/quality and click "Export Video"
+7. **Export**: Click "Export Video" for high-quality output
 
 ### Image Editing
 1. **Go to "Gallery" tab**
@@ -238,8 +229,7 @@ meta-video-converter-electron/
 │   │   ├── preload.js       # Preload script for IPC bridge
 │   │   ├── converter.js     # Meta AI automation logic
 │   │   ├── database.js      # SQLite database for history
-│   │   ├── video-editor.js  # FFmpeg video processing
-│   │   └── captions.js      # Caption generation & styling
+│   │   └── video-editor.js  # FFmpeg video processing (transitions, music, voice over)
 │   └── renderer/
 │       ├── index.html       # Main UI with all tabs
 │       ├── app.js           # Renderer process logic
@@ -251,14 +241,26 @@ meta-video-converter-electron/
 
 ## Changelog
 
+### v3.27.0
+- **Auto-add to Video Editor**: Converted videos can be automatically added to Video Editor timeline
+- **Voice Over**: Replaced captions with voice over feature - add voice audio with volume control
+- **Replace Audio Option**: Option to replace original audio with voice over
+- **Persistent Settings**: Video Editor output folder now remembers last location
+- **UI Improvements**: Renamed "Convert" tab to "Image to Video", compact sidebar layout
+- **Timeline Navigation**: Added scroll buttons for navigating long timelines
+- Improved Windows Media Player compatibility for exported videos
+
+### v3.24.0
+- Added timeline scroll navigation buttons
+- Fixed Video Editor layout and accordion behavior
+- Fixed add music for videos without audio track
+
 ### v3.23.0
 - Added **Video Editor** tab for editing videos with transitions
 - **Timeline**: Drag & drop clips with visual arrangement
 - **Transitions**: 10+ transition styles (fade, dissolve, wipe, etc.)
-- **Styled Captions**: 8 professional caption templates
-- **Import SRT**: Load existing subtitle files
 - **Background Music**: Add music with volume control and fade
-- **Export**: Multiple resolution and quality options
+- **Export**: High quality export options
 - Requires FFmpeg (place in assets/ffmpeg or system PATH)
 
 ### v3.22.0

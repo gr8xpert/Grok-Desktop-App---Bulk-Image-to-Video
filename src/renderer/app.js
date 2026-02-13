@@ -240,18 +240,10 @@ let videoClipIdCounter = 0;
 let selectedClipId = null;
 let transitionStyle = 'fade';
 let transitionDuration = 1;
-let captionsGenerated = false;
-let captionsData = null;         // { words: [...], text: '...' }
-let captionSettings = {
-  template: 'boldPop',
-  font: 'Montserrat',
-  size: 'medium',
-  position: 'bottom',
-  color: '#ffffff',
-  highlight: '#ffff00',
-  background: true
-};
 let musicFile = null;
+let voiceoverFile = null;        // Voice over audio file { path, name }
+let voiceoverVolume = 100;       // Voice over volume (0-100)
+let voiceoverReplace = false;    // Replace original audio with voiceover
 let musicVolume = 70;
 let originalVolume = 100;
 let musicFade = true;
@@ -317,6 +309,16 @@ function applyConfig(cfg) {
     elements.upscaleOutputFolder.value = cfg.upscaleOutputFolder;
   } else if (cfg.outputFolder) {
     elements.upscaleOutputFolder.value = cfg.outputFolder;
+  }
+
+  // Video Editor config - use same output folder by default
+  const videoOutputEl = document.getElementById('videoOutputFolder');
+  if (videoOutputEl) {
+    if (cfg.videoOutputFolder) {
+      videoOutputEl.value = cfg.videoOutputFolder;
+    } else if (cfg.outputFolder) {
+      videoOutputEl.value = cfg.outputFolder;
+    }
   }
 }
 
@@ -800,6 +802,23 @@ function handleProgress(data) {
         showToast(`Completed with ${issues.join(', ')}`, 'warning');
       } else {
         showToast(`Successfully converted ${successCount} files!`, 'success');
+      }
+
+      // Auto-add to Video Editor if enabled
+      const autoAddCheckbox = document.getElementById('autoAddToEditor');
+      if (autoAddCheckbox && autoAddCheckbox.checked && successCount > 0) {
+        const completedVideoPaths = files
+          .filter(f => f.status === 'completed' && f.outputPath)
+          .map(f => f.outputPath);
+
+        if (completedVideoPaths.length > 0) {
+          // Add videos to timeline
+          addVideoClipsByPath(completedVideoPaths).then(() => {
+            // Switch to Video Editor tab
+            switchTab('video-editor');
+            showToast(`Added ${completedVideoPaths.length} videos to Video Editor`, 'success');
+          });
+        }
       }
       break;
 
@@ -1406,6 +1425,26 @@ function handleTTIProgress(data) {
         showToast(`Completed with ${errorCount} error(s)`, 'warning');
       } else {
         showToast(`Successfully generated ${successCount} images!`, 'success');
+      }
+
+      // Auto-add to Video Editor if enabled
+      const ttiAutoAddCheckbox = document.getElementById('ttiAutoAddToEditor');
+      if (ttiAutoAddCheckbox && ttiAutoAddCheckbox.checked) {
+        // Get video paths from completed prompts (if converted to video)
+        const completedVideoPaths = ttiPrompts
+          .filter(p => p.status === 'completed' && p.videoPath)
+          .map(p => p.videoPath);
+
+        if (completedVideoPaths.length > 0) {
+          // Add videos to timeline
+          addVideoClipsByPath(completedVideoPaths).then(() => {
+            // Switch to Video Editor tab
+            switchTab('video-editor');
+            showToast(`Added ${completedVideoPaths.length} videos to Video Editor`, 'success');
+          });
+        } else {
+          showToast('No videos to add. Enable "Also convert images to video" option.', 'info');
+        }
       }
       break;
 
@@ -2547,53 +2586,17 @@ function setupVideoEditorEventListeners() {
     });
   });
 
-  // Caption template
-  document.getElementById('captionTemplate')?.addEventListener('change', (e) => {
-    captionSettings.template = e.target.value;
+  // Voice Over controls
+  document.getElementById('btnAddVoiceover')?.addEventListener('click', addVoiceover);
+  document.getElementById('btnRemoveVoiceover')?.addEventListener('click', removeVoiceover);
+
+  document.getElementById('voiceoverVolume')?.addEventListener('input', (e) => {
+    voiceoverVolume = parseInt(e.target.value);
+    document.getElementById('voiceoverVolumeValue').textContent = voiceoverVolume + '%';
   });
 
-  // Caption font
-  document.getElementById('captionFont')?.addEventListener('change', (e) => {
-    captionSettings.font = e.target.value;
-  });
-
-  // Caption size buttons
-  document.querySelectorAll('.size-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      captionSettings.size = btn.dataset.size;
-    });
-  });
-
-  // Caption position
-  document.getElementById('captionPosition')?.addEventListener('change', (e) => {
-    captionSettings.position = e.target.value;
-  });
-
-  // Caption colors
-  document.getElementById('captionColor')?.addEventListener('change', (e) => {
-    captionSettings.color = e.target.value;
-  });
-
-  document.getElementById('captionHighlight')?.addEventListener('change', (e) => {
-    captionSettings.highlight = e.target.value;
-  });
-
-  // Caption background
-  document.getElementById('captionBackground')?.addEventListener('change', (e) => {
-    captionSettings.background = e.target.checked;
-  });
-
-  // Import Captions button
-  document.getElementById('btnGenerateCaptions')?.addEventListener('click', generateCaptions);
-
-  // Clear Captions button
-  document.getElementById('btnClearCaptions')?.addEventListener('click', () => {
-    captionsGenerated = false;
-    captionsData = null;
-    updateCaptionsStatus();
-    showToast('Captions cleared', 'info');
+  document.getElementById('voiceoverReplace')?.addEventListener('change', (e) => {
+    voiceoverReplace = e.target.checked;
   });
 
   // Add Music button
@@ -2626,6 +2629,10 @@ function setupVideoEditorEventListeners() {
     const folder = await window.api.selectFolder('output');
     if (folder) {
       document.getElementById('videoOutputFolder').value = folder;
+      // Save to config
+      const cfg = await window.api.loadConfig();
+      cfg.videoOutputFolder = folder;
+      await window.api.saveConfig(cfg);
     }
   });
 
@@ -2898,10 +2905,7 @@ function clearTimeline() {
   if (videoClips.length > 0 && confirm('Clear all clips from timeline?')) {
     videoClips = [];
     selectedClipId = null;
-    captionsGenerated = false;
-    captionsData = null;
     renderTimeline();
-    updateCaptionsStatus();
   }
 }
 
@@ -2912,54 +2916,30 @@ function formatDuration(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-async function generateCaptions() {
-  if (videoClips.length === 0) {
-    showToast('Add videos to timeline first', 'warning');
-    return;
-  }
+async function addVoiceover() {
+  const paths = await window.api.selectAudio();
+  if (paths && paths.length > 0) {
+    const filePath = paths[0];
+    const name = filePath.substring(Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/')) + 1);
 
-  const btn = document.getElementById('btnGenerateCaptions');
-  btn.disabled = true;
-  btn.innerHTML = `
-    <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-      <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-    </svg>
-    Importing...
-  `;
+    voiceoverFile = {
+      path: filePath,
+      name: name
+    };
 
-  try {
-    // Import SRT file (AI generation requires Whisper setup)
-    const result = await window.api.importSRT();
+    document.getElementById('voiceoverFile').style.display = 'flex';
+    document.getElementById('voiceoverFileName').textContent = name;
+    document.getElementById('btnAddVoiceover').style.display = 'none';
 
-    if (result.success && result.captionData) {
-      captionsGenerated = true;
-      captionsData = result.captionData;
-      showToast(`Captions imported: ${result.captionData.segments?.length || 0} segments`, 'success');
-    } else if (result.error) {
-      showToast('Import failed: ' + result.error, 'error');
-    }
-  } catch (e) {
-    showToast('Failed to import captions: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-        <polyline points="14 2 14 8 20 8"></polyline>
-        <line x1="16" y1="13" x2="8" y2="13"></line>
-        <line x1="16" y1="17" x2="8" y2="17"></line>
-      </svg>
-      Import Captions (SRT)
-    `;
-    updateCaptionsStatus();
+    showToast('Voice over added', 'success');
   }
 }
 
-function updateCaptionsStatus() {
-  const status = document.getElementById('captionsStatus');
-  if (status) {
-    status.style.display = captionsGenerated ? 'flex' : 'none';
-  }
+function removeVoiceover() {
+  voiceoverFile = null;
+  document.getElementById('voiceoverFile').style.display = 'none';
+  document.getElementById('btnAddVoiceover').style.display = 'block';
+  showToast('Voice over removed', 'info');
 }
 
 async function addMusic() {
@@ -3015,13 +2995,16 @@ async function exportVideo() {
     const result = await window.api.exportVideo({
       clips: videoClips,
       transition: { style: transitionStyle, duration: transitionDuration },
-      captions: captionsGenerated ? captionsData : null,
-      captionSettings: captionsGenerated ? captionSettings : null,
       music: musicFile,
       musicOptions: {
         musicVolume: musicVolume,
         originalVolume: originalVolume,
         fade: musicFade
+      },
+      voiceover: voiceoverFile,
+      voiceoverOptions: {
+        volume: voiceoverVolume,
+        replaceOriginal: voiceoverReplace
       },
       quality: exportQuality,
       resolution: exportResolution,
