@@ -2635,16 +2635,39 @@ function setupVideoEditorEventListeners() {
   // Cancel Export button
   document.getElementById('btnCancelExport')?.addEventListener('click', cancelExport);
 
-  // Section toggles (collapsible)
-  document.querySelectorAll('.section-header[data-toggle]').forEach(header => {
+  // Section toggles (accordion - only one open at a time)
+  const sectionHeaders = document.querySelectorAll('.section-header[data-toggle]');
+  sectionHeaders.forEach(header => {
     header.addEventListener('click', () => {
       const contentId = header.dataset.toggle;
       const content = document.getElementById(contentId);
-      if (content) {
-        header.classList.toggle('collapsed');
-        content.classList.toggle('collapsed');
+      const isCurrentlyCollapsed = header.classList.contains('collapsed');
+
+      // Collapse all sections first
+      sectionHeaders.forEach(h => {
+        const cId = h.dataset.toggle;
+        const c = document.getElementById(cId);
+        if (c) {
+          h.classList.add('collapsed');
+          c.classList.add('collapsed');
+        }
+      });
+
+      // If clicked section was collapsed, open it
+      if (isCurrentlyCollapsed && content) {
+        header.classList.remove('collapsed');
+        content.classList.remove('collapsed');
       }
     });
+  });
+
+  // Start with only Export section open (collapse others)
+  sectionHeaders.forEach(header => {
+    const contentId = header.dataset.toggle;
+    if (contentId !== 'exportContent') {
+      header.classList.add('collapsed');
+      document.getElementById(contentId)?.classList.add('collapsed');
+    }
   });
 }
 
