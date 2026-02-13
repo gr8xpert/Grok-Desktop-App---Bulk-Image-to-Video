@@ -383,7 +383,17 @@ ipcMain.handle('save-resume-data', async (event, data) => {
 
 // Open folder in explorer
 ipcMain.handle('open-folder', async (event, folderPath) => {
-  shell.openPath(folderPath);
+  try {
+    // Normalize path for Windows
+    const normalizedPath = folderPath.replace(/\//g, '\\');
+    if (fs.existsSync(normalizedPath)) {
+      shell.openPath(normalizedPath);
+    } else {
+      console.error('Folder not found:', normalizedPath);
+    }
+  } catch (err) {
+    console.error('Error opening folder:', err);
+  }
 });
 
 // Open file
