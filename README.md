@@ -68,7 +68,7 @@ Full-featured image editor accessible from the Gallery:
 Dedicated tab for batch AI upscaling multiple images:
 
 - **Drag & Drop**: Add multiple images at once
-- **AI Upscaling**: High-quality enhancement using Real-ESRGAN
+- **AI Upscale**: High-quality enhancement using Real-ESRGAN
 - **Scale Factors**: 2x, 3x, or 4x enlargement
 - **Output Format**: Same as original, PNG, JPG, or WebP
 - **Progress Tracking**: Real-time progress with per-file status
@@ -142,10 +142,9 @@ To use the image/video generation features, you need to provide your Meta AI coo
 ### Bulk Upscaling
 1. **Go to "Upscale" tab**
 2. **Add Images**: Drag & drop or select files/folder
-3. **Choose Method**: Basic (fast) or AI/Real-ESRGAN (best quality)
-4. **Select Scale**: 2x, 3x, or 4x
-5. **Set Output**: Choose output folder and format
-6. **Start**: Click "Start Upscaling"
+3. **Select Scale**: 2x, 3x, or 4x
+4. **Set Output**: Choose output folder and format
+5. **Start**: Click "Start Upscaling"
 
 ### Image Editing
 1. **Go to "Gallery" tab**
@@ -217,15 +216,18 @@ meta-video-converter-electron/
 ## Changelog
 
 ### v3.22.0
-- Added **Bulk Upscale** tab for batch image upscaling
-- Support for Basic (Lanczos3) and AI (Real-ESRGAN) upscaling methods
+- Added **Bulk Upscale** tab for batch AI image upscaling
+- AI upscaling powered by Real-ESRGAN for high-quality results
 - Scale factors: 2x, 3x, 4x
 - Output format selection (same/PNG/JPG/WebP)
 - Progress tracking with per-file status
+- Removed upscale from Image Editor (use dedicated Upscale tab instead)
+- Fixed stop button styling
+- Fixed gallery folder icon functionality
 
 ### v3.21.x
 - Added **Gallery** tab with media browser
-- Added **Image Editor** with adjustments, filters, transform, upscale
+- Added **Image Editor** with adjustments, filters, transform
 - Added **Before/After** compare slider
 - Added **Watermark** support
 - Added **Quick Thumbnails** generation
