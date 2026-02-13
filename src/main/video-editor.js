@@ -170,12 +170,20 @@ class VideoEditor {
       }
 
       try {
-        // Get total duration for progress calculation
+        // Get total duration and audio info for progress calculation
         let totalDuration = 0;
+        let allHaveAudio = true;
+
         for (const clip of clips) {
           const info = await this.getVideoInfo(clip.path);
           clip.duration = info.duration;
+          clip.hasAudio = info.hasAudio;
           totalDuration += info.duration;
+
+          if (!info.hasAudio) {
+            allHaveAudio = false;
+            console.log('[VIDEO-EDITOR] Clip without audio:', clip.path);
+          }
         }
 
         // Account for transitions reducing total time
@@ -184,7 +192,7 @@ class VideoEditor {
         totalDuration -= transitionCount * transitionDuration;
 
         // Build FFmpeg command for merging with transitions
-        const args = this.buildMergeCommand(clips, transition, outputPath);
+        const args = this.buildMergeCommand(clips, transition, outputPath, allHaveAudio);
 
         console.log('[VIDEO-EDITOR] Merge command:', args.join(' '));
 
@@ -234,7 +242,7 @@ class VideoEditor {
   }
 
   // Build FFmpeg command for merging videos with xfade transitions
-  buildMergeCommand(clips, transition, outputPath) {
+  buildMergeCommand(clips, transition, outputPath, allHaveAudio = true) {
     const args = ['-y'];
 
     // Add all input files
@@ -242,53 +250,140 @@ class VideoEditor {
       args.push('-i', clip.path);
     });
 
+    // If not all clips have audio, add a silent audio source
+    if (!allHaveAudio) {
+      // Add silent audio generator as the last input
+      args.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100');
+    }
+
     if (transition.style === 'none' || clips.length === 1) {
       // Simple concatenation without transitions
-      const filterParts = [];
-      clips.forEach((_, i) => {
-        filterParts.push(`[${i}:v:0][${i}:a:0]`);
-      });
+      if (allHaveAudio) {
+        const filterParts = [];
+        clips.forEach((_, i) => {
+          filterParts.push(`[${i}:v:0][${i}:a:0]`);
+        });
+        args.push(
+          '-filter_complex',
+          `${filterParts.join('')}concat=n=${clips.length}:v=1:a=1[outv][outa]`,
+          '-map', '[outv]',
+          '-map', '[outa]'
+        );
+      } else {
+        // Video-only concatenation with silent audio
+        const silentIdx = clips.length; // Index of silent audio source
+        let filterComplex = '';
 
-      args.push(
-        '-filter_complex',
-        `${filterParts.join('')}concat=n=${clips.length}:v=1:a=1[outv][outa]`,
-        '-map', '[outv]',
-        '-map', '[outa]'
-      );
+        // Create audio for each clip (use real audio if exists, silent if not)
+        clips.forEach((clip, i) => {
+          if (clip.hasAudio) {
+            filterComplex += `[${i}:a]asetpts=PTS-STARTPTS[a${i}];`;
+          } else {
+            // Use silent audio, trimmed to clip duration
+            filterComplex += `[${silentIdx}:a]atrim=0:${clip.duration},asetpts=PTS-STARTPTS[a${i}];`;
+          }
+        });
+
+        // Concatenate video
+        const videoParts = clips.map((_, i) => `[${i}:v]`).join('');
+        filterComplex += `${videoParts}concat=n=${clips.length}:v=1:a=0[outv];`;
+
+        // Concatenate audio
+        const audioParts = clips.map((_, i) => `[a${i}]`).join('');
+        filterComplex += `${audioParts}concat=n=${clips.length}:v=0:a=1[outa]`;
+
+        args.push(
+          '-filter_complex', filterComplex,
+          '-map', '[outv]',
+          '-map', '[outa]'
+        );
+      }
     } else {
       // Build xfade filter chain for transitions
       const duration = transition.duration;
-      let filterComplex = '';
-      let lastVideo = '[0:v]';
-      let lastAudio = '[0:a]';
-      let offset = clips[0].duration - duration;
 
-      for (let i = 1; i < clips.length; i++) {
-        const outVideo = i === clips.length - 1 ? '[outv]' : `[v${i}]`;
-        const outAudio = i === clips.length - 1 ? '[outa]' : `[a${i}]`;
+      if (allHaveAudio) {
+        // All clips have audio - use normal xfade with audio crossfade
+        let filterComplex = '';
+        let lastVideo = '[0:v]';
+        let lastAudio = '[0:a]';
+        let offset = clips[0].duration - duration;
 
-        // Video transition (xfade)
-        filterComplex += `${lastVideo}[${i}:v]xfade=transition=${transition.style}:duration=${duration}:offset=${offset}${outVideo};`;
+        for (let i = 1; i < clips.length; i++) {
+          const outVideo = i === clips.length - 1 ? '[outv]' : `[v${i}]`;
+          const outAudio = i === clips.length - 1 ? '[outa]' : `[a${i}]`;
 
-        // Audio crossfade
-        filterComplex += `${lastAudio}[${i}:a]acrossfade=d=${duration}${outAudio};`;
+          // Video transition (xfade)
+          filterComplex += `${lastVideo}[${i}:v]xfade=transition=${transition.style}:duration=${duration}:offset=${offset}${outVideo};`;
 
-        lastVideo = outVideo;
-        lastAudio = outAudio;
+          // Audio crossfade
+          filterComplex += `${lastAudio}[${i}:a]acrossfade=d=${duration}${outAudio};`;
 
-        if (i < clips.length - 1) {
-          offset += clips[i].duration - duration;
+          lastVideo = outVideo;
+          lastAudio = outAudio;
+
+          if (i < clips.length - 1) {
+            offset += clips[i].duration - duration;
+          }
         }
+
+        // Remove trailing semicolon
+        filterComplex = filterComplex.slice(0, -1);
+
+        args.push(
+          '-filter_complex', filterComplex,
+          '-map', '[outv]',
+          '-map', '[outa]'
+        );
+      } else {
+        // Not all clips have audio - video transitions only, generate silent audio
+        const silentIdx = clips.length;
+        let filterComplex = '';
+
+        // First, create audio streams for each clip
+        clips.forEach((clip, i) => {
+          if (clip.hasAudio) {
+            filterComplex += `[${i}:a]asetpts=PTS-STARTPTS[a${i}];`;
+          } else {
+            filterComplex += `[${silentIdx}:a]atrim=0:${clip.duration},asetpts=PTS-STARTPTS[a${i}];`;
+          }
+        });
+
+        // Video transitions
+        let lastVideo = '[0:v]';
+        let offset = clips[0].duration - duration;
+
+        for (let i = 1; i < clips.length; i++) {
+          const outVideo = i === clips.length - 1 ? '[outv]' : `[v${i}]`;
+
+          filterComplex += `${lastVideo}[${i}:v]xfade=transition=${transition.style}:duration=${duration}:offset=${offset}${outVideo};`;
+
+          lastVideo = outVideo;
+
+          if (i < clips.length - 1) {
+            offset += clips[i].duration - duration;
+          }
+        }
+
+        // Audio crossfades
+        let lastAudio = '[a0]';
+        for (let i = 1; i < clips.length; i++) {
+          const outAudio = i === clips.length - 1 ? '[outa]' : `[amix${i}]`;
+
+          filterComplex += `${lastAudio}[a${i}]acrossfade=d=${duration}${outAudio};`;
+
+          lastAudio = outAudio;
+        }
+
+        // Remove trailing semicolon
+        filterComplex = filterComplex.slice(0, -1);
+
+        args.push(
+          '-filter_complex', filterComplex,
+          '-map', '[outv]',
+          '-map', '[outa]'
+        );
       }
-
-      // Remove trailing semicolon
-      filterComplex = filterComplex.slice(0, -1);
-
-      args.push(
-        '-filter_complex', filterComplex,
-        '-map', '[outv]',
-        '-map', '[outa]'
-      );
     }
 
     // Output settings
