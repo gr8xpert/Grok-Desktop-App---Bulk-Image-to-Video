@@ -292,6 +292,7 @@ async function init() {
   // Set up progress listeners
   window.api.onProgress(handleProgress);
   window.api.onTTIProgress(handleTTIProgress);
+  window.api.onVideoExportProgress(handleVideoExportProgress);
 }
 
 function applyConfig(cfg) {
@@ -2584,8 +2585,16 @@ function setupVideoEditorEventListeners() {
     captionSettings.background = e.target.checked;
   });
 
-  // Generate Captions button
+  // Import Captions button
   document.getElementById('btnGenerateCaptions')?.addEventListener('click', generateCaptions);
+
+  // Clear Captions button
+  document.getElementById('btnClearCaptions')?.addEventListener('click', () => {
+    captionsGenerated = false;
+    captionsData = null;
+    updateCaptionsStatus();
+    showToast('Captions cleared', 'info');
+  });
 
   // Add Music button
   document.getElementById('btnAddMusic')?.addEventListener('click', addMusic);
@@ -2863,32 +2872,32 @@ async function generateCaptions() {
     <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
       <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
     </svg>
-    Generating...
+    Importing...
   `;
 
   try {
-    // For now, show that this feature requires FFmpeg & Whisper setup
-    showToast('AI Captions require FFmpeg & Whisper setup. Coming soon!', 'info');
+    // Import SRT file (AI generation requires Whisper setup)
+    const result = await window.api.importSRT();
 
-    // TODO: Implement actual caption generation
-    // const result = await window.api.generateCaptions(videoClips.map(c => c.path));
-    // if (result.success) {
-    //   captionsGenerated = true;
-    //   captionsData = result.data;
-    //   showToast('Captions generated successfully!', 'success');
-    // }
+    if (result.success && result.captionData) {
+      captionsGenerated = true;
+      captionsData = result.captionData;
+      showToast(`Captions imported: ${result.captionData.segments?.length || 0} segments`, 'success');
+    } else if (result.error) {
+      showToast('Import failed: ' + result.error, 'error');
+    }
   } catch (e) {
-    showToast('Failed to generate captions: ' + e.message, 'error');
+    showToast('Failed to import captions: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-        <line x1="12" y1="19" x2="12" y2="23"></line>
-        <line x1="8" y1="23" x2="16" y2="23"></line>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
       </svg>
-      Generate Captions
+      Import Captions (SRT)
     `;
     updateCaptionsStatus();
   }
@@ -2938,32 +2947,52 @@ async function exportVideo() {
     return;
   }
 
-  // For now, show that this feature requires FFmpeg setup
-  showToast('Video export requires FFmpeg setup. Coming soon!', 'info');
+  // Check if FFmpeg is available
+  const ffmpegCheck = await window.api.checkFFmpeg();
+  if (!ffmpegCheck.available) {
+    showToast('FFmpeg not found. Please install FFmpeg or place it in assets/ffmpeg/', 'error');
+    return;
+  }
 
-  // TODO: Implement actual video export
-  // isExporting = true;
-  // document.getElementById('btnExportVideo').style.display = 'none';
-  // document.getElementById('exportProgress').style.display = 'block';
-  //
-  // try {
-  //   const result = await window.api.exportVideo({
-  //     clips: videoClips,
-  //     transition: { style: transitionStyle, duration: transitionDuration },
-  //     captions: captionsGenerated ? { data: captionsData, settings: captionSettings } : null,
-  //     music: musicFile ? { path: musicFile.path, volume: musicVolume, fade: musicFade } : null,
-  //     originalVolume: originalVolume,
-  //     quality: exportQuality,
-  //     resolution: exportResolution,
-  //     outputFolder: outputFolder
-  //   });
-  // } catch (e) {
-  //   showToast('Export failed: ' + e.message, 'error');
-  // } finally {
-  //   isExporting = false;
-  //   document.getElementById('btnExportVideo').style.display = 'block';
-  //   document.getElementById('exportProgress').style.display = 'none';
-  // }
+  isExporting = true;
+  document.getElementById('btnExportVideo').style.display = 'none';
+  document.getElementById('btnCancelExport').style.display = 'block';
+  document.getElementById('exportProgress').style.display = 'block';
+
+  try {
+    const result = await window.api.exportVideo({
+      clips: videoClips,
+      transition: { style: transitionStyle, duration: transitionDuration },
+      captions: captionsGenerated ? captionsData : null,
+      captionSettings: captionsGenerated ? captionSettings : null,
+      music: musicFile,
+      musicOptions: {
+        musicVolume: musicVolume,
+        originalVolume: originalVolume,
+        fade: musicFade
+      },
+      quality: exportQuality,
+      resolution: exportResolution,
+      outputFolder: outputFolder
+    });
+
+    if (result.success) {
+      showToast('Video exported successfully!', 'success');
+      // Open output folder
+      if (result.outputPath) {
+        window.api.showInFolder(result.outputPath);
+      }
+    } else {
+      showToast('Export failed: ' + (result.error || 'Unknown error'), 'error');
+    }
+  } catch (e) {
+    showToast('Export failed: ' + e.message, 'error');
+  } finally {
+    isExporting = false;
+    document.getElementById('btnExportVideo').style.display = 'block';
+    document.getElementById('btnCancelExport').style.display = 'none';
+    document.getElementById('exportProgress').style.display = 'none';
+  }
 }
 
 function cancelExport() {
@@ -2971,7 +3000,26 @@ function cancelExport() {
     window.api.cancelVideoExport?.();
     isExporting = false;
     document.getElementById('btnExportVideo').style.display = 'block';
+    document.getElementById('btnCancelExport').style.display = 'none';
     document.getElementById('exportProgress').style.display = 'none';
     showToast('Export cancelled', 'warning');
+  }
+}
+
+function handleVideoExportProgress(data) {
+  const progressBar = document.getElementById('exportProgressBar');
+  const progressStatus = document.getElementById('exportStatus');
+  const progressPercent = document.getElementById('exportPercent');
+
+  if (progressBar) {
+    progressBar.style.width = `${data.percent || 0}%`;
+  }
+
+  if (progressStatus) {
+    progressStatus.textContent = data.stage || 'Processing...';
+  }
+
+  if (progressPercent) {
+    progressPercent.textContent = `${Math.round(data.percent || 0)}%`;
   }
 }

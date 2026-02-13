@@ -94,8 +94,11 @@ contextBridge.exposeInMainWorld('api', {
   selectVideos: () => ipcRenderer.invoke('select-videos'),
   selectAudio: () => ipcRenderer.invoke('select-audio'),
   getVideoInfo: (path) => ipcRenderer.invoke('get-video-info', path),
-  generateCaptions: (videoPaths) => ipcRenderer.invoke('generate-captions', videoPaths),
+  generateCaptions: (options) => ipcRenderer.invoke('generate-captions', options),
+  importSRT: () => ipcRenderer.invoke('import-srt'),
+  getCaptionTemplates: () => ipcRenderer.invoke('get-caption-templates'),
   exportVideo: (options) => ipcRenderer.invoke('export-video', options),
   cancelVideoExport: () => ipcRenderer.invoke('cancel-video-export'),
+  checkFFmpeg: () => ipcRenderer.invoke('check-ffmpeg'),
   onVideoExportProgress: (callback) => ipcRenderer.on('video-export-progress', (e, data) => callback(data))
 });
