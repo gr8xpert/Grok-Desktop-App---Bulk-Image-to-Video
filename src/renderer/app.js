@@ -140,7 +140,6 @@ const elements = {
   btnTTVSelectFolder: document.getElementById('btnTTVSelectFolder'),
   ttvNamingPattern: document.getElementById('ttvNamingPattern'),
   ttvAspectRatio: document.getElementById('ttvAspectRatio'),
-  ttvSaveImages: document.getElementById('ttvSaveImages'),
   ttvProgressSection: document.getElementById('ttvProgressSection'),
   ttvProgressCompleted: document.getElementById('ttvProgressCompleted'),
   ttvProgressTotal: document.getElementById('ttvProgressTotal'),
@@ -515,6 +514,9 @@ function setupTTIEventListeners() {
       const folder = await window.api.selectFolder('output');
       if (folder && elements.ttiOutputFolder) {
         elements.ttiOutputFolder.value = folder;
+        const cfg = await window.api.loadConfig();
+        cfg.ttiOutputFolder = folder;
+        await window.api.saveConfig(cfg);
       }
     });
   }
@@ -703,7 +705,6 @@ async function startTTVGeneration() {
     outputFolder: elements.ttvOutputFolder.value,
     namingPattern: elements.ttvNamingPattern?.value || '{prompt}',
     aspectRatio: elements.ttvAspectRatio?.value || '9:16',
-    saveImages: elements.ttvSaveImages?.checked ?? true,
     delayBetween: parseInt(elements.settingDelay?.value) || 30,
     headless: elements.settingHeadless?.checked ?? true
   });
@@ -1360,7 +1361,8 @@ async function saveSettings() {
     delayBetween: parseInt(elements.settingDelay.value),
     retryAttempts: parseInt(elements.settingRetries.value),
     headless: elements.settingHeadless.checked,
-    upscaleOutputFolder: elements.upscaleOutputFolder?.value || ''
+    upscaleOutputFolder: elements.upscaleOutputFolder?.value || '',
+    ttiOutputFolder: elements.ttiOutputFolder?.value || ''
   };
 
   await window.api.saveConfig(cfg);
