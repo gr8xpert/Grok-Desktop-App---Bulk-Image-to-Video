@@ -414,7 +414,7 @@ ipcMain.handle('stop-conversion', async () => {
 
 // Text to Video conversion
 ipcMain.handle('start-text-to-video', async (event, options) => {
-  const { cookies, prompts, outputFolder, namingPattern, aspectRatio, saveImages, delayBetween, headless } = options;
+  const { cookies, prompts, outputFolder, namingPattern, aspectRatio, delayBetween, headless } = options;
 
   if (converter) {
     return { success: false, error: 'Conversion already in progress' };
@@ -448,7 +448,7 @@ ipcMain.handle('start-text-to-video', async (event, options) => {
         const result = await converter.textToVideo(
           prompt.text,
           outputFolder,
-          { saveImage: saveImages, namingPattern, aspectRatio },
+          { namingPattern, aspectRatio },
           (stage, percent) => {
             mainWindow.webContents.send('ttv-progress', {
               type: 'prompt-progress',
