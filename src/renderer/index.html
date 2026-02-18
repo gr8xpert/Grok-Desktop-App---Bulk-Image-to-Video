@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; media-src 'self' file:;">
-  <title>Meta Video Converter</title>
+  <title>Grok Video Converter</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,12 +29,12 @@
             <polygon points="23 7 16 12 23 17 23 7"/>
             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
           </svg>
-          <span>MVC</span>
+          <span>Grok</span>
         </div>
       </div>
       <nav class="nav-tabs">
         <button class="nav-tab active" data-tab="convert">Image to Video</button>
-        <button class="nav-tab" data-tab="tti">Text to Image</button>
+        <button class="nav-tab" data-tab="text-to-video">Text to Video</button>
         <button class="nav-tab" data-tab="upscale">Upscale</button>
         <button class="nav-tab" data-tab="video-editor">Video Editor</button>
         <button class="nav-tab" data-tab="gallery">Gallery</button>
@@ -194,6 +194,258 @@
                 Start Conversion
               </button>
               <button class="btn btn-danger btn-lg" id="btnStop" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="6" y="6" width="12" height="12"/>
+                </svg>
+                Stop
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Text to Video Tab -->
+      <section class="tab-content" id="tab-text-to-video">
+        <div class="ttv-layout">
+          <!-- Left Panel: Prompts -->
+          <div class="panel panel-prompts">
+            <div class="panel-header">
+              <h2>Text Prompts</h2>
+              <div class="header-actions">
+                <button class="btn btn-small" id="btnImportTTVPrompts">Import .txt</button>
+                <button class="btn btn-small" id="btnClearTTVPrompts">Clear All</button>
+              </div>
+            </div>
+            <div class="prompts-list" id="ttvPromptsList">
+              <!-- Prompts will be added here -->
+            </div>
+            <div class="prompt-input-area">
+              <textarea id="ttvPromptInput" placeholder="Enter your image description prompt here..." rows="3"></textarea>
+              <button class="btn btn-primary" id="btnAddTTVPromptFromInput">Add to Queue</button>
+            </div>
+          </div>
+
+          <!-- Right Panel: Output Settings & Progress -->
+          <div class="panel panel-output">
+            <div class="panel-header">
+              <h2>Output Settings</h2>
+            </div>
+
+            <div class="output-settings">
+              <div class="setting-group">
+                <label>Output Folder</label>
+                <div class="folder-select">
+                  <input type="text" id="ttvOutputFolder" readonly placeholder="Select output folder...">
+                  <button class="btn btn-small" id="btnTTVSelectFolder">Browse</button>
+                </div>
+              </div>
+
+              <div class="setting-group">
+                <label>Naming Pattern</label>
+                <input type="text" id="ttvNamingPattern" value="{prompt}.mp4" placeholder="{prompt}.mp4">
+                <small>Use {prompt}, {index}, {timestamp}</small>
+              </div>
+
+              <div class="setting-group">
+                <label>Aspect Ratio</label>
+                <select id="ttvAspectRatio">
+                  <option value="9:16">9:16 (Vertical/Shorts)</option>
+                  <option value="16:9">16:9 (Landscape/YouTube)</option>
+                  <option value="1:1">1:1 (Square)</option>
+                  <option value="4:5">4:5 (Portrait)</option>
+                </select>
+              </div>
+
+              <div class="setting-group">
+                <label>
+                  <input type="checkbox" id="ttvSaveImages" checked>
+                  Save generated images
+                </label>
+              </div>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="progress-section" id="ttvProgressSection" style="display: none;">
+              <div class="progress-header">
+                <span>Progress: <span id="ttvProgressCompleted">0</span>/<span id="ttvProgressTotal">0</span></span>
+                <span class="progress-status" id="ttvProgressStatus">Starting...</span>
+              </div>
+              <div class="progress-bar-container">
+                <div class="progress-bar" id="ttvProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="progress-details">
+                <span>Completed: <span id="ttvSuccessCount">0</span></span>
+                <span>Failed: <span id="ttvFailedCount">0</span></span>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+              <button class="btn btn-primary btn-large" id="btnTTVStart">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Start Generation
+              </button>
+              <button class="btn btn-danger btn-large" id="btnTTVStop" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="6" y="6" width="12" height="12"/>
+                </svg>
+                Stop
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Grok AI Tab (legacy - hidden) -->
+      <section class="tab-content" id="tab-grok" style="display:none !important;">
+        <div class="convert-layout">
+          <!-- Left Panel: Drop Zone & Files -->
+          <div class="panel panel-files">
+            <div class="panel-header">
+              <h2>Input Images (Grok)</h2>
+              <div class="header-actions">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="grokIncludeSubfolders">
+                  <span class="checkbox-custom"></span>
+                  Include subfolders
+                </label>
+              </div>
+            </div>
+
+            <!-- Drop Zone -->
+            <div class="drop-zone" id="grokDropZone">
+              <div class="drop-zone-content">
+                <div class="drop-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
+                <p class="drop-text">Drop images or folder here</p>
+                <p class="drop-subtext">or click to browse</p>
+                <div class="drop-buttons">
+                  <button class="btn btn-ghost" id="grokBtnSelectFiles">Select Files</button>
+                  <button class="btn btn-ghost" id="grokBtnSelectFolder">Select Folder</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- File Grid -->
+            <div class="file-grid" id="grokFileGrid">
+              <!-- Populated dynamically -->
+            </div>
+
+            <!-- File Actions -->
+            <div class="file-actions" id="grokFileActions" style="display: none;">
+              <div class="file-count">
+                <span id="grokSelectedCount">0</span> images selected
+              </div>
+              <div class="file-action-buttons">
+                <button class="btn btn-ghost btn-sm" id="grokBtnClearFiles">Clear All</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Panel: Settings & Actions -->
+          <div class="panel panel-controls">
+            <!-- Grok Cookie Settings -->
+            <div class="control-section">
+              <h3>Grok Authentication</h3>
+              <p class="section-hint">Get cookies from grok.com (DevTools → Application → Cookies)</p>
+              <div class="input-group">
+                <label>sso Cookie</label>
+                <input type="password" id="grokCookieSso" placeholder="Paste sso cookie value...">
+              </div>
+              <div class="input-group">
+                <label>sso-rw Cookie</label>
+                <input type="password" id="grokCookieSsoRw" placeholder="Paste sso-rw cookie value...">
+              </div>
+              <button class="btn btn-secondary btn-sm" id="grokBtnValidateCookies">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Validate Cookies
+              </button>
+              <div class="cookie-status" id="grokCookieStatus"></div>
+            </div>
+
+            <!-- Output Settings -->
+            <div class="control-section">
+              <h3>Output</h3>
+              <div class="input-group">
+                <label>Output Folder</label>
+                <div class="input-with-btn">
+                  <input type="text" id="grokOutputFolder" placeholder="Select output folder..." readonly>
+                  <button class="btn btn-icon" id="grokBtnSelectOutput">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="input-group">
+                <label>Naming Pattern</label>
+                <input type="text" id="grokNamingPattern" value="{name}_grok.mp4" placeholder="{name}.mp4">
+                <span class="input-hint">Use {name} for original name, {index} for number</span>
+              </div>
+            </div>
+
+            <!-- Conversion Settings -->
+            <div class="control-section">
+              <h3>Settings</h3>
+              <div class="input-row">
+                <div class="input-group">
+                  <label>Delay Between (sec)</label>
+                  <input type="number" id="grokDelayBetween" value="5" min="1" max="120">
+                </div>
+                <div class="input-group">
+                  <label>Retry Attempts</label>
+                  <input type="number" id="grokRetryAttempts" value="3" min="1" max="10">
+                </div>
+              </div>
+              <label class="checkbox-label">
+                <input type="checkbox" id="grokHeadless" checked>
+                <span class="checkbox-custom"></span>
+                Run in background (headless mode)
+              </label>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="control-section" id="grokProgressSection">
+              <h3>Progress</h3>
+              <div class="progress-stats">
+                <div class="stat">
+                  <span class="stat-value" id="grokProgressTotal">0</span>
+                  <span class="stat-label">Total</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value" id="grokProgressCompleted">0</span>
+                  <span class="stat-label">Completed</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value" id="grokProgressFailed">0</span>
+                  <span class="stat-label">Failed</span>
+                </div>
+              </div>
+              <div class="progress-bar-container">
+                <div class="progress-bar" id="grokProgressBar"></div>
+              </div>
+              <div class="progress-status" id="grokProgressStatus">Ready for generation</div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+              <button class="btn btn-primary btn-lg" id="grokBtnStartConversion" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Start Grok Conversion
+              </button>
+              <button class="btn btn-danger btn-lg" id="grokBtnStopConversion" style="display: none;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="6" y="6" width="12" height="12"/>
                 </svg>
@@ -846,8 +1098,8 @@
       <section class="tab-content" id="tab-settings">
         <div class="settings-container">
           <div class="settings-section">
-            <h2>Meta AI Authentication</h2>
-            <p class="settings-desc">Enter your Meta AI cookies to authenticate. Get these from DevTools (F12) → Application → Cookies → meta.ai</p>
+            <h2>Grok Authentication</h2>
+            <p class="settings-desc">Enter your Grok cookies to authenticate. Get these from DevTools (F12) → Application → Cookies → grok.com</p>
 
             <div class="cookie-status" id="cookieStatus">
               <div class="status-indicator"></div>
@@ -856,12 +1108,12 @@
 
             <div class="settings-grid">
               <div class="input-group">
-                <label>datr Cookie <span class="required">*</span></label>
-                <input type="password" id="cookieDatr" placeholder="Enter datr cookie value">
+                <label>sso Cookie <span class="required">*</span></label>
+                <input type="password" id="cookieSso" placeholder="Enter sso cookie value">
               </div>
               <div class="input-group">
-                <label>abra_sess Cookie <span class="required">*</span></label>
-                <input type="password" id="cookieAbraSess" placeholder="Enter abra_sess cookie value">
+                <label>sso-rw Cookie <span class="required">*</span></label>
+                <input type="password" id="cookieSsoRw" placeholder="Enter sso-rw cookie value">
               </div>
             </div>
 

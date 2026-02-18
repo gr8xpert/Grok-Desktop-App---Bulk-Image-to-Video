@@ -15,6 +15,11 @@ let selectedRatio = '16:9';    // Current aspect ratio
 let isTTIGenerating = false;
 let ttiPromptIdCounter = 0;
 
+// TTV State (Text to Video)
+let ttvPrompts = [];           // Array of { id, text, status, progress }
+let isTTVGenerating = false;
+let ttvPromptIdCounter = 0;
+
 // DOM Elements
 const elements = {
   // Tabs
@@ -68,9 +73,10 @@ const elements = {
   historyList: document.getElementById('historyList'),
   btnClearHistory: document.getElementById('btnClearHistory'),
 
-  // Settings
-  cookieDatr: document.getElementById('cookieDatr'),
-  cookieAbraSess: document.getElementById('cookieAbraSess'),
+  // Settings (Grok)
+  cookieSso: document.getElementById('cookieSso'),
+  cookieSsoRw: document.getElementById('cookieSsoRw'),
+  cookieUserId: document.getElementById('cookieUserId'),
   cookieStatus: document.getElementById('cookieStatus'),
   btnValidateCookies: document.getElementById('btnValidateCookies'),
   btnClearCookies: document.getElementById('btnClearCookies'),
@@ -110,6 +116,28 @@ const elements = {
   ttiProgressStatus: document.getElementById('ttiProgressStatus'),
   btnStartTTI: document.getElementById('btnStartTTI'),
   btnStopTTI: document.getElementById('btnStopTTI'),
+
+  // TTV (Text to Video) Elements
+  ttvPromptInput: document.getElementById('ttvPromptInput'),
+  ttvPromptsList: document.getElementById('ttvPromptsList'),
+  btnAddTTVPrompt: document.getElementById('btnAddTTVPrompt'),
+  btnAddTTVPromptFromInput: document.getElementById('btnAddTTVPromptFromInput'),
+  btnImportTTVPrompts: document.getElementById('btnImportTTVPrompts'),
+  btnClearTTVPrompts: document.getElementById('btnClearTTVPrompts'),
+  ttvOutputFolder: document.getElementById('ttvOutputFolder'),
+  btnTTVSelectFolder: document.getElementById('btnTTVSelectFolder'),
+  ttvNamingPattern: document.getElementById('ttvNamingPattern'),
+  ttvAspectRatio: document.getElementById('ttvAspectRatio'),
+  ttvSaveImages: document.getElementById('ttvSaveImages'),
+  ttvProgressSection: document.getElementById('ttvProgressSection'),
+  ttvProgressCompleted: document.getElementById('ttvProgressCompleted'),
+  ttvProgressTotal: document.getElementById('ttvProgressTotal'),
+  ttvProgressBar: document.getElementById('ttvProgressBar'),
+  ttvProgressStatus: document.getElementById('ttvProgressStatus'),
+  ttvSuccessCount: document.getElementById('ttvSuccessCount'),
+  ttvFailedCount: document.getElementById('ttvFailedCount'),
+  btnTTVStart: document.getElementById('btnTTVStart'),
+  btnTTVStop: document.getElementById('btnTTVStop'),
 
   // Gallery Elements
   galleryGrid: document.getElementById('galleryGrid'),
@@ -264,9 +292,6 @@ async function init() {
   presets = await window.api.getPresets();
   populatePresets();
 
-  // Load TTI presets
-  ttiPresets = await window.api.getTTIPresets();
-
   // Check for resume data
   const resumeData = await window.api.getResumeData();
   if (resumeData && resumeData.files.length > 0) {
@@ -283,13 +308,13 @@ async function init() {
 
   // Set up progress listeners
   window.api.onProgress(handleProgress);
-  window.api.onTTIProgress(handleTTIProgress);
   window.api.onVideoExportProgress(handleVideoExportProgress);
 }
 
 function applyConfig(cfg) {
-  if (cfg.datr) elements.cookieDatr.value = cfg.datr;
-  if (cfg.abra_sess) elements.cookieAbraSess.value = cfg.abra_sess;
+  if (cfg.sso) elements.cookieSso.value = cfg.sso;
+  if (cfg['sso-rw']) elements.cookieSsoRw.value = cfg['sso-rw'];
+  if (cfg['x-userid']) elements.cookieUserId.value = cfg['x-userid'];
   if (cfg.outputFolder) elements.outputFolder.value = cfg.outputFolder;
   if (cfg.namingPattern) elements.namingPattern.value = cfg.namingPattern;
   if (cfg.prompt) elements.customPrompt.value = cfg.prompt;
@@ -415,45 +440,53 @@ function setupEventListeners() {
 
   // TTI Event Listeners
   setupTTIEventListeners();
+
+  // TTV Event Listeners
+  setupTTVEventListeners();
 }
 
 function setupTTIEventListeners() {
   // Add prompt button
-  elements.btnAddPrompt.addEventListener('click', () => {
-    const text = elements.ttiPromptInput.value.trim();
-    if (text) {
-      addTTIPrompt(text);
-      elements.ttiPromptInput.value = '';
-    } else {
-      showToast('Please enter a prompt', 'warning');
-    }
-  });
+  // TTI functionality (disabled in Grok version)
+  if (elements.btnAddPrompt) {
+    elements.btnAddPrompt.addEventListener('click', () => {
+      const text = elements.ttiPromptInput?.value?.trim();
+      if (text) {
+        addTTIPrompt(text);
+        elements.ttiPromptInput.value = '';
+      } else {
+        showToast('Please enter a prompt', 'warning');
+      }
+    });
+  }
 
   // Enter key to add prompt
-  elements.ttiPromptInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      elements.btnAddPrompt.click();
-    }
-  });
+  if (elements.ttiPromptInput) {
+    elements.ttiPromptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        elements.btnAddPrompt?.click();
+      }
+    });
+  }
 
   // Import prompts from file
-  elements.btnImportPrompts.addEventListener('click', async () => {
-    const prompts = await window.api.importPromptsFile();
-    if (prompts.length > 0) {
-      prompts.forEach(text => addTTIPrompt(text));
-      showToast(`Imported ${prompts.length} prompts`, 'success');
-    }
-  });
+  if (elements.btnImportPrompts) {
+    elements.btnImportPrompts.addEventListener('click', async () => {
+      // Disabled in Grok version
+    });
+  }
 
   // Clear all prompts
-  elements.btnClearPrompts.addEventListener('click', () => {
-    if (ttiPrompts.length > 0 && confirm('Clear all prompts from queue?')) {
-      ttiPrompts = [];
-      renderTTIPromptList();
-      showToast('Queue cleared', 'info');
-    }
-  });
+  if (elements.btnClearPrompts) {
+    elements.btnClearPrompts.addEventListener('click', () => {
+      if (ttiPrompts.length > 0 && confirm('Clear all prompts from queue?')) {
+        ttiPrompts = [];
+        renderTTIPromptList();
+        showToast('Queue cleared', 'info');
+      }
+    });
+  }
 
   // Aspect ratio buttons
   document.querySelectorAll('.ratio-btn').forEach(btn => {
@@ -464,29 +497,287 @@ function setupTTIEventListeners() {
     });
   });
 
-  // Output folder selection
-  elements.btnTTISelectFolder.addEventListener('click', async () => {
-    const folder = await window.api.selectFolder('output');
-    if (folder) {
-      elements.ttiOutputFolder.value = folder;
-    }
-  });
+  // Output folder selection (TTI) - disabled in Grok version
+  if (elements.btnTTISelectFolder) {
+    elements.btnTTISelectFolder.addEventListener('click', async () => {
+      const folder = await window.api.selectFolder('output');
+      if (folder && elements.ttiOutputFolder) {
+        elements.ttiOutputFolder.value = folder;
+      }
+    });
+  }
 
-  // Convert to video checkbox
-  elements.ttiConvertToVideo.addEventListener('change', () => {
-    elements.ttiVideoPromptGroup.style.display = elements.ttiConvertToVideo.checked ? 'block' : 'none';
-  });
+  // Convert to video checkbox - disabled in Grok version
+  if (elements.ttiConvertToVideo) {
+    elements.ttiConvertToVideo.addEventListener('change', () => {
+      if (elements.ttiVideoPromptGroup) {
+        elements.ttiVideoPromptGroup.style.display = elements.ttiConvertToVideo.checked ? 'block' : 'none';
+      }
+    });
+  }
 
-  // Video preset selection
-  elements.ttiVideoPreset.addEventListener('change', () => {
-    elements.ttiCustomVideoPromptGroup.style.display =
-      elements.ttiVideoPreset.value === 'custom' ? 'block' : 'none';
-  });
+  // Video preset selection - disabled in Grok version
+  if (elements.ttiVideoPreset) {
+    elements.ttiVideoPreset.addEventListener('change', () => {
+      if (elements.ttiCustomVideoPromptGroup) {
+        elements.ttiCustomVideoPromptGroup.style.display =
+          elements.ttiVideoPreset.value === 'custom' ? 'block' : 'none';
+      }
+    });
+  }
 
-  // Start/Stop TTI generation
-  elements.btnStartTTI.addEventListener('click', startTTIGeneration);
-  elements.btnStopTTI.addEventListener('click', stopTTIGeneration);
+  // Start/Stop TTI generation - disabled in Grok version
+  if (elements.btnStartTTI) elements.btnStartTTI.addEventListener('click', startTTIGeneration);
+  if (elements.btnStopTTI) elements.btnStopTTI.addEventListener('click', stopTTIGeneration);
 }
+
+// ============================================
+// Text to Video (TTV) Functions
+// ============================================
+
+function setupTTVEventListeners() {
+  // Add prompt from input
+  if (elements.btnAddTTVPromptFromInput) {
+    elements.btnAddTTVPromptFromInput.addEventListener('click', () => {
+      const text = elements.ttvPromptInput?.value?.trim();
+      if (text) {
+        addTTVPrompt(text);
+        elements.ttvPromptInput.value = '';
+      } else {
+        showToast('Please enter a prompt', 'warning');
+      }
+    });
+  }
+
+  // Enter key to add prompt
+  if (elements.ttvPromptInput) {
+    elements.ttvPromptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        elements.btnAddTTVPromptFromInput?.click();
+      }
+    });
+  }
+
+  // Output folder selection
+  if (elements.btnTTVSelectFolder) {
+    elements.btnTTVSelectFolder.addEventListener('click', async () => {
+      const folder = await window.api.selectFolder('output');
+      if (folder && elements.ttvOutputFolder) {
+        elements.ttvOutputFolder.value = folder;
+      }
+    });
+  }
+
+  // Import prompts from .txt file
+  if (elements.btnImportTTVPrompts) {
+    elements.btnImportTTVPrompts.addEventListener('click', async () => {
+      try {
+        const prompts = await window.api.importPromptsFile();
+        if (prompts && prompts.length > 0) {
+          for (const text of prompts) {
+            addTTVPrompt(text);
+          }
+          showToast(`Imported ${prompts.length} prompts`, 'success');
+        } else {
+          showToast('No prompts found in file', 'warning');
+        }
+      } catch (e) {
+        showToast('Failed to import prompts: ' + e.message, 'error');
+      }
+    });
+  }
+
+  // Clear all prompts
+  if (elements.btnClearTTVPrompts) {
+    elements.btnClearTTVPrompts.addEventListener('click', () => {
+      if (ttvPrompts.length === 0) {
+        showToast('No prompts to clear', 'info');
+        return;
+      }
+      if (confirm(`Clear all ${ttvPrompts.length} prompts?`)) {
+        ttvPrompts = [];
+        ttvPromptIdCounter = 0;
+        renderTTVPromptList();
+        showToast('All prompts cleared', 'success');
+      }
+    });
+  }
+
+  // Start/Stop TTV generation
+  if (elements.btnTTVStart) elements.btnTTVStart.addEventListener('click', startTTVGeneration);
+  if (elements.btnTTVStop) elements.btnTTVStop.addEventListener('click', stopTTVGeneration);
+
+  // TTV Progress listener
+  if (window.api.onTTVProgress) {
+    window.api.onTTVProgress(handleTTVProgress);
+  }
+}
+
+function addTTVPrompt(text) {
+  const prompt = {
+    id: ++ttvPromptIdCounter,
+    text,
+    status: 'pending',
+    progress: 0
+  };
+  ttvPrompts.push(prompt);
+  renderTTVPromptList();
+}
+
+function removeTTVPrompt(id) {
+  ttvPrompts = ttvPrompts.filter(p => p.id !== id);
+  renderTTVPromptList();
+}
+
+function renderTTVPromptList() {
+  if (!elements.ttvPromptsList) return;
+
+  if (ttvPrompts.length === 0) {
+    elements.ttvPromptsList.innerHTML = '';
+    return;
+  }
+
+  elements.ttvPromptsList.innerHTML = ttvPrompts.map((prompt, index) => `
+    <div class="prompt-card ${prompt.status}" data-id="${prompt.id}">
+      <div class="prompt-card-number">${index + 1}</div>
+      <div class="prompt-card-content">
+        <div class="prompt-card-text">${escapeHtml(prompt.text)}</div>
+        <div class="prompt-card-status">
+          ${prompt.status === 'pending' ? 'Waiting...' :
+            prompt.status === 'processing' ? `${prompt.stage || 'Processing...'} ${prompt.progress}%` :
+            prompt.status === 'completed' ? 'Completed' :
+            prompt.status === 'failed' ? `Failed: ${prompt.error || 'Unknown error'}` : ''}
+        </div>
+      </div>
+      <div class="prompt-card-actions">
+        ${prompt.status === 'pending' ? `
+          <button class="btn btn-small btn-danger" onclick="removeTTVPrompt(${prompt.id})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function startTTVGeneration() {
+  if (ttvPrompts.length === 0) {
+    showToast('Please add at least one prompt', 'error');
+    return;
+  }
+
+  if (!elements.ttvOutputFolder?.value) {
+    showToast('Please select an output folder', 'error');
+    return;
+  }
+
+  if (!elements.cookieSso?.value || !elements.cookieSsoRw?.value) {
+    showToast('Please enter Grok cookies in Settings', 'error');
+    switchTab('settings');
+    return;
+  }
+
+  const result = await window.api.startTextToVideo({
+    cookies: {
+      sso: elements.cookieSso.value,
+      'sso-rw': elements.cookieSsoRw.value,
+      'x-userid': elements.cookieUserId?.value || ''
+    },
+    prompts: ttvPrompts.filter(p => p.status === 'pending'),
+    outputFolder: elements.ttvOutputFolder.value,
+    namingPattern: elements.ttvNamingPattern?.value || '{prompt}',
+    aspectRatio: elements.ttvAspectRatio?.value || '9:16',
+    saveImages: elements.ttvSaveImages?.checked ?? true,
+    delayBetween: parseInt(elements.settingDelay?.value) || 30,
+    headless: elements.settingHeadless?.checked ?? true
+  });
+
+  if (result.success) {
+    isTTVGenerating = true;
+    elements.btnTTVStart.style.display = 'none';
+    elements.btnTTVStop.style.display = 'block';
+    elements.ttvProgressSection.style.display = 'block';
+    elements.ttvProgressTotal.textContent = ttvPrompts.filter(p => p.status === 'pending').length;
+    elements.ttvProgressCompleted.textContent = '0';
+    elements.ttvSuccessCount.textContent = '0';
+    elements.ttvFailedCount.textContent = '0';
+    elements.ttvProgressBar.style.width = '0%';
+    showToast('Text to Video generation started', 'info');
+  } else {
+    showToast(result.error || 'Failed to start generation', 'error');
+  }
+}
+
+async function stopTTVGeneration() {
+  await window.api.stopConversion();
+  isTTVGenerating = false;
+  elements.btnTTVStart.style.display = 'block';
+  elements.btnTTVStop.style.display = 'none';
+  showToast('Generation stopped', 'warning');
+}
+
+function handleTTVProgress(data) {
+  switch (data.type) {
+    case 'prompt-start':
+      ttvPrompts[data.index].status = 'processing';
+      ttvPrompts[data.index].progress = 0;
+      elements.ttvProgressStatus.textContent = `Processing: ${data.prompt.substring(0, 30)}...`;
+      renderTTVPromptList();
+      break;
+
+    case 'prompt-progress':
+      ttvPrompts[data.index].progress = data.percent;
+      ttvPrompts[data.index].stage = data.stage;
+      elements.ttvProgressBar.style.width = `${data.percent}%`;
+      elements.ttvProgressStatus.textContent = data.stage;
+      renderTTVPromptList();
+      break;
+
+    case 'prompt-complete':
+      const completed = parseInt(elements.ttvProgressCompleted.textContent) + 1;
+      elements.ttvProgressCompleted.textContent = completed;
+
+      if (data.success) {
+        ttvPrompts[data.index].status = 'completed';
+        elements.ttvSuccessCount.textContent = parseInt(elements.ttvSuccessCount.textContent) + 1;
+      } else {
+        ttvPrompts[data.index].status = 'failed';
+        ttvPrompts[data.index].error = data.error;
+        elements.ttvFailedCount.textContent = parseInt(elements.ttvFailedCount.textContent) + 1;
+      }
+      renderTTVPromptList();
+      break;
+
+    case 'complete':
+      isTTVGenerating = false;
+      elements.btnTTVStart.style.display = 'block';
+      elements.btnTTVStop.style.display = 'none';
+      elements.ttvProgressStatus.textContent = 'Complete!';
+      showToast('Text to Video generation complete!', 'success');
+      break;
+
+    case 'error':
+      isTTVGenerating = false;
+      elements.btnTTVStart.style.display = 'block';
+      elements.btnTTVStop.style.display = 'none';
+      showToast(`Error: ${data.error}`, 'error');
+      break;
+  }
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Make removeTTVPrompt available globally for onclick handlers
+window.removeTTVPrompt = removeTTVPrompt;
 
 // ============================================
 // Tab Navigation
@@ -672,17 +963,11 @@ async function startConversion() {
     return;
   }
 
-  if (!elements.cookieDatr.value || !elements.cookieAbraSess.value) {
-    showToast('Please enter Meta AI cookies in Settings', 'error');
+  if (!elements.cookieSso.value || !elements.cookieSsoRw.value) {
+    showToast('Please enter Grok cookies in Settings', 'error');
     switchTab('settings');
     return;
   }
-
-  // Get prompt
-  const selectedPreset = presets.find(p => p.id === elements.presetSelect.value);
-  const prompt = elements.presetSelect.value === 'custom'
-    ? elements.customPrompt.value
-    : selectedPreset?.prompt || 'Animate with smooth cinematic motion';
 
   // Save resume data
   await window.api.saveResumeData({
@@ -693,14 +978,12 @@ async function startConversion() {
   // Start conversion
   const result = await window.api.startConversion({
     cookies: {
-      datr: elements.cookieDatr.value,
-      abra_sess: elements.cookieAbraSess.value,
-      wd: '1920x1080',
-      dpr: '1'
+      sso: elements.cookieSso.value,
+      'sso-rw': elements.cookieSsoRw.value,
+      'x-userid': elements.cookieUserId?.value || ''
     },
     files: files.filter(f => f.status === 'pending'),
     outputFolder: elements.outputFolder.value,
-    prompt,
     namingPattern: elements.namingPattern.value || '{name}.mp4',
     delayBetween: parseInt(elements.settingDelay.value) || 30,
     retryAttempts: parseInt(elements.settingRetries.value) || 3,
@@ -1030,10 +1313,9 @@ async function validateCookies() {
   elements.btnValidateCookies.innerHTML = '<span class="spinner"></span> Validating...';
 
   const result = await window.api.validateCookies({
-    datr: elements.cookieDatr.value,
-    abra_sess: elements.cookieAbraSess.value,
-    wd: '1920x1080',
-    dpr: '1'
+    sso: elements.cookieSso.value,
+    'sso-rw': elements.cookieSsoRw.value,
+    'x-userid': elements.cookieUserId?.value || ''
   });
 
   elements.btnValidateCookies.disabled = false;
@@ -1058,16 +1340,15 @@ async function validateCookies() {
 
 async function saveSettings() {
   const cfg = {
-    datr: elements.cookieDatr.value,
-    abra_sess: elements.cookieAbraSess.value,
+    sso: elements.cookieSso.value,
+    'sso-rw': elements.cookieSsoRw.value,
+    'x-userid': elements.cookieUserId?.value || '',
     outputFolder: elements.outputFolder.value,
     namingPattern: elements.namingPattern.value,
-    prompt: elements.customPrompt.value,
     delayBetween: parseInt(elements.settingDelay.value),
     retryAttempts: parseInt(elements.settingRetries.value),
     headless: elements.settingHeadless.checked,
-    ttiOutputFolder: elements.ttiOutputFolder.value,
-    upscaleOutputFolder: elements.upscaleOutputFolder.value
+    upscaleOutputFolder: elements.upscaleOutputFolder?.value || ''
   };
 
   await window.api.saveConfig(cfg);
@@ -1077,15 +1358,17 @@ async function saveSettings() {
 
 async function clearCookies() {
   if (confirm('Clear all saved cookies?')) {
-    elements.cookieDatr.value = '';
-    elements.cookieAbraSess.value = '';
+    elements.cookieSso.value = '';
+    elements.cookieSsoRw.value = '';
+    if (elements.cookieUserId) elements.cookieUserId.value = '';
     elements.cookieStatus.className = 'cookie-status';
     elements.cookieStatus.innerHTML = '<div class="status-indicator"></div><span>Not validated</span>';
 
     // Save empty cookies to config
     const cfg = await window.api.loadConfig();
-    cfg.datr = '';
-    cfg.abra_sess = '';
+    cfg.sso = '';
+    cfg['sso-rw'] = '';
+    cfg['x-userid'] = '';
     await window.api.saveConfig(cfg);
 
     showToast('Cookies cleared', 'success');
@@ -1282,33 +1565,32 @@ async function startTTIGeneration() {
     return;
   }
 
-  if (!elements.cookieDatr.value || !elements.cookieAbraSess.value) {
-    showToast('Please enter Meta AI cookies in Settings', 'error');
+  if (!elements.cookieSso.value || !elements.cookieSsoRw.value) {
+    showToast('Please enter Grok cookies in Settings', 'error');
     switchTab('settings');
     return;
   }
 
   // Get style prefix
-  const selectedPreset = ttiPresets.find(p => p.id === elements.ttiStylePreset.value);
+  const selectedPreset = ttiPresets.find(p => p.id === elements.ttiStylePreset?.value);
   const stylePrefix = selectedPreset?.prefix || '';
 
   // Get video prompt if enabled
   let videoPrompt = '';
-  if (elements.ttiConvertToVideo.checked) {
-    if (elements.ttiVideoPreset.value === 'custom') {
-      videoPrompt = elements.ttiCustomVideoPrompt.value;
+  if (elements.ttiConvertToVideo?.checked) {
+    if (elements.ttiVideoPreset?.value === 'custom') {
+      videoPrompt = elements.ttiCustomVideoPrompt?.value || '';
     } else {
-      const videoPreset = presets.find(p => p.id === elements.ttiVideoPreset.value);
+      const videoPreset = presets.find(p => p.id === elements.ttiVideoPreset?.value);
       videoPrompt = videoPreset?.prompt || 'Animate with smooth cinematic motion';
     }
   }
 
   const result = await window.api.startTTIGeneration({
     cookies: {
-      datr: elements.cookieDatr.value,
-      abra_sess: elements.cookieAbraSess.value,
-      wd: '1920x1080',
-      dpr: '1'
+      sso: elements.cookieSso.value,
+      'sso-rw': elements.cookieSsoRw.value,
+      'x-userid': elements.cookieUserId?.value || ''
     },
     prompts: pendingPrompts,
     aspectRatio: selectedRatio,
@@ -3058,3 +3340,4 @@ function handleVideoExportProgress(data) {
     progressPercent.textContent = `${Math.round(data.percent || 0)}%`;
   }
 }
+

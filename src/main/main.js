@@ -4,7 +4,7 @@ const fs = require('fs');
 const https = require('https');
 const { execFile } = require('child_process');
 const sharp = require('sharp');
-const { MetaConverter } = require('./converter');
+const { GrokConverter } = require('./grok-converter');
 const { Database } = require('./database');
 const VideoEditor = require('./video-editor');
 
@@ -70,7 +70,7 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-  // Open DevTools in development for debugging
+  // Open DevTools only in development (uncomment for debugging)
   // mainWindow.webContents.openDevTools();
 }
 
@@ -212,7 +212,7 @@ ipcMain.handle('get-thumbnail', async (event, imagePath) => {
 // Validate cookies
 ipcMain.handle('validate-cookies', async (event, cookies) => {
   try {
-    const testConverter = new MetaConverter(cookies, { headless: true });
+    const testConverter = new GrokConverter(cookies, { headless: true });
     const valid = await testConverter.validateSession();
     return { valid, error: valid ? null : 'Invalid or expired cookies' };
   } catch (e) {
@@ -228,7 +228,7 @@ ipcMain.handle('start-conversion', async (event, options) => {
     return { success: false, error: 'Conversion already in progress' };
   }
 
-  converter = new MetaConverter(cookies, {
+  converter = new GrokConverter(cookies, {
     headless,
     retryAttempts,
     delayBetween
@@ -242,12 +242,16 @@ ipcMain.handle('start-conversion', async (event, options) => {
   // Start conversion in background
   (async () => {
     try {
+      console.log(`[MAIN] Starting conversion with ${files.length} files`);
+
       await converter.start();
 
       for (let i = 0; i < files.length; i++) {
         if (!converter.isRunning()) break;
 
         const file = files[i];
+        console.log(`[MAIN] Processing file ${i + 1}/${files.length}: ${file.name}`);
+
         const outputName = namingPattern
           .replace('{name}', path.basename(file.path, path.extname(file.path)))
           .replace('{index}', String(i + 1).padStart(3, '0'));
@@ -278,7 +282,7 @@ ipcMain.handle('start-conversion', async (event, options) => {
           file: file.name
         });
 
-        const result = await converter.convert(file.path, outputPath, prompt, (stage, percent) => {
+        const result = await converter.convert(file.path, outputPath, (stage, percent) => {
           mainWindow.webContents.send('conversion-progress', {
             type: 'file-progress',
             index: i,
@@ -333,7 +337,7 @@ ipcMain.handle('start-conversion', async (event, options) => {
       // Show notification
       if (Notification.isSupported()) {
         new Notification({
-          title: 'Meta Video Converter',
+          title: 'Grok Video Converter',
           body: 'Batch conversion completed!'
         }).show();
       }
@@ -350,6 +354,97 @@ ipcMain.handle('stop-conversion', async () => {
     return true;
   }
   return false;
+});
+
+// Text to Video conversion
+ipcMain.handle('start-text-to-video', async (event, options) => {
+  const { cookies, prompts, outputFolder, namingPattern, aspectRatio, saveImages, delayBetween, headless } = options;
+
+  if (converter) {
+    return { success: false, error: 'Conversion already in progress' };
+  }
+
+  converter = new GrokConverter(cookies, {
+    headless,
+    retryAttempts: 3,
+    delayBetween
+  });
+
+  // Start conversion in background
+  (async () => {
+    try {
+      console.log(`[MAIN] Starting text-to-video with ${prompts.length} prompts`);
+
+      await converter.start();
+
+      for (let i = 0; i < prompts.length; i++) {
+        if (!converter.isRunning()) break;
+
+        const prompt = prompts[i];
+        console.log(`[MAIN] Processing prompt ${i + 1}/${prompts.length}: ${prompt.text.substring(0, 50)}...`);
+
+        mainWindow.webContents.send('ttv-progress', {
+          type: 'prompt-start',
+          index: i,
+          prompt: prompt.text
+        });
+
+        const result = await converter.textToVideo(
+          prompt.text,
+          outputFolder,
+          { saveImage: saveImages, namingPattern, aspectRatio },
+          (stage, percent) => {
+            mainWindow.webContents.send('ttv-progress', {
+              type: 'prompt-progress',
+              index: i,
+              prompt: prompt.text,
+              stage,
+              percent
+            });
+          }
+        );
+
+        // Save to history
+        db.addEntry({
+          inputPath: `[TEXT] ${prompt.text.substring(0, 100)}`,
+          outputPath: result.videoPath || '',
+          status: result.success ? 'success' : 'failed',
+          error: result.error,
+          prompt: prompt.text
+        });
+
+        mainWindow.webContents.send('ttv-progress', {
+          type: 'prompt-complete',
+          index: i,
+          prompt: prompt.text,
+          success: result.success,
+          imagePath: result.imagePath,
+          videoPath: result.videoPath,
+          error: result.error
+        });
+
+        // Delay between prompts
+        if (i < prompts.length - 1 && converter.isRunning()) {
+          await new Promise(r => setTimeout(r, delayBetween * 1000));
+        }
+      }
+
+    } catch (e) {
+      console.error('Text-to-video error:', e);
+      mainWindow.webContents.send('ttv-progress', {
+        type: 'error',
+        error: e.message
+      });
+    } finally {
+      await converter.stop();
+      converter = null;
+      mainWindow.webContents.send('ttv-progress', {
+        type: 'complete'
+      });
+    }
+  })();
+
+  return { success: true };
 });
 
 // Get history
@@ -523,7 +618,7 @@ ipcMain.handle('start-tti-generation', async (event, options) => {
     return { success: false, error: 'TTI generation already in progress' };
   }
 
-  ttiConverter = new MetaConverter(cookies, {
+  ttiConverter = new GrokConverter(cookies, {
     headless,
     retryAttempts,
     delayBetween
@@ -643,7 +738,7 @@ ipcMain.handle('start-tti-generation', async (event, options) => {
       // Show notification
       if (Notification.isSupported()) {
         new Notification({
-          title: 'Meta Video Converter',
+          title: 'Grok Video Converter',
           body: 'Text-to-Image generation completed!'
         }).show();
       }
@@ -964,7 +1059,30 @@ ipcMain.handle('upscale-basic', async (event, { imagePath, scale }) => {
 
 // Check if Real-ESRGAN is installed
 ipcMain.handle('check-realesrgan', async () => {
-  return { installed: fs.existsSync(realesrganExe) };
+  const exeExists = fs.existsSync(realesrganExe);
+  const modelPath = path.join(realesrganDir, 'models');
+  const modelsExist = fs.existsSync(modelPath);
+
+  let status = 'ready';
+  let message = 'AI Upscale is ready to use.';
+
+  if (!exeExists) {
+    status = 'missing_exe';
+    message = 'AI Upscale executable not found. Please reinstall the application.';
+  } else if (!modelsExist) {
+    status = 'missing_models';
+    message = 'AI Upscale models not found. Please reinstall the application.';
+  }
+
+  console.log('[REALESRGAN] Check status:', status);
+
+  return {
+    installed: exeExists && modelsExist,
+    status,
+    message,
+    exePath: realesrganExe,
+    modelPath
+  };
 });
 
 // Download and install Real-ESRGAN
@@ -1036,7 +1154,22 @@ ipcMain.handle('upscale-ai', async (event, { imagePath, scale }) => {
 
   if (!realesrganExe || !fs.existsSync(realesrganExe)) {
     console.log('[UPSCALE-AI] Exe not found');
-    return { success: false, error: 'Real-ESRGAN executable not found at: ' + realesrganExe };
+    return {
+      success: false,
+      error: 'AI Upscale is not available. The Real-ESRGAN executable was not found. Please reinstall the application.',
+      errorType: 'missing_exe'
+    };
+  }
+
+  // Check if models exist
+  const modelPath = path.join(realesrganDir, 'models');
+  if (!fs.existsSync(modelPath)) {
+    console.log('[UPSCALE-AI] Models folder not found');
+    return {
+      success: false,
+      error: 'AI Upscale models not found. Please reinstall the application.',
+      errorType: 'missing_models'
+    };
   }
 
   try {
@@ -1077,10 +1210,30 @@ ipcMain.handle('upscale-ai', async (event, { imagePath, scale }) => {
 
         if (error) {
           console.error('[UPSCALE-AI] Error:', error.message);
-          resolve({ success: false, error: stderr || error.message });
+          console.error('[UPSCALE-AI] Stderr:', stderr);
+
+          // Parse common errors and provide helpful messages
+          let errorMsg = stderr || error.message;
+          let errorType = 'unknown';
+
+          if (errorMsg.toLowerCase().includes('vulkan') || errorMsg.toLowerCase().includes('vk')) {
+            errorMsg = 'Vulkan GPU drivers required. Please update your graphics drivers or install Vulkan runtime.';
+            errorType = 'vulkan_missing';
+          } else if (errorMsg.toLowerCase().includes('vcomp') || errorMsg.toLowerCase().includes('vcruntime') || errorMsg.toLowerCase().includes('dll')) {
+            errorMsg = 'Visual C++ Redistributable required. Please install Microsoft Visual C++ Redistributable 2019.';
+            errorType = 'vcredist_missing';
+          } else if (errorMsg.toLowerCase().includes('memory') || errorMsg.toLowerCase().includes('out of')) {
+            errorMsg = 'Not enough GPU memory. Try a smaller image or lower scale.';
+            errorType = 'memory_error';
+          } else if (errorMsg.toLowerCase().includes('model')) {
+            errorMsg = 'AI model files missing. Please reinstall the application.';
+            errorType = 'model_error';
+          }
+
+          resolve({ success: false, error: errorMsg, errorType });
         } else if (!fs.existsSync(tempPath)) {
           console.error('[UPSCALE-AI] Output file not created');
-          resolve({ success: false, error: 'Output file was not created' });
+          resolve({ success: false, error: 'Upscale failed - output file was not created. Your GPU may not support Vulkan.', errorType: 'output_missing' });
         } else {
           // Read the upscaled image for preview
           const buffer = fs.readFileSync(tempPath);
@@ -1655,7 +1808,7 @@ ipcMain.handle('start-bulk-upscale', async (event, options) => {
       // Show notification
       if (Notification.isSupported()) {
         new Notification({
-          title: 'Meta Video Converter',
+          title: 'Grok Video Converter',
           body: 'Bulk upscale completed!'
         }).show();
       }
@@ -1990,7 +2143,7 @@ ipcMain.handle('export-video', async (event, options) => {
     // Show notification
     if (Notification.isSupported()) {
       new Notification({
-        title: 'Meta Video Converter',
+        title: 'Grok Video Converter',
         body: 'Video export completed!'
       }).show();
     }
@@ -2013,4 +2166,157 @@ ipcMain.handle('cancel-video-export', async () => {
 // Check if FFmpeg is available
 ipcMain.handle('check-ffmpeg', async () => {
   return { available: videoEditor && videoEditor.isAvailable() };
+});
+
+// ============ Grok Converter IPC Handlers ============
+
+// Validate Grok cookies
+ipcMain.handle('grok-validate-cookies', async (event, cookies) => {
+  try {
+    const testConverter = new GrokConverter(cookies, { headless: true });
+    const valid = await testConverter.validateSession();
+    return { valid, error: valid ? null : 'Invalid or expired Grok cookies' };
+  } catch (e) {
+    return { valid: false, error: e.message };
+  }
+});
+
+// Start Grok conversion
+ipcMain.handle('grok-start-conversion', async (event, options) => {
+  const { cookies, files, outputFolder, namingPattern, delayBetween, retryAttempts, headless } = options;
+
+  if (grokConverter) {
+    return { success: false, error: 'Grok conversion already in progress' };
+  }
+
+  grokConverter = new GrokConverter(cookies, {
+    headless,
+    retryAttempts,
+    delayBetween
+  });
+
+  // Start conversion in background
+  (async () => {
+    try {
+      await grokConverter.start();
+
+      for (let i = 0; i < files.length; i++) {
+        if (!grokConverter.isRunning()) break;
+
+        const file = files[i];
+        const outputName = namingPattern
+          .replace('{name}', path.basename(file.path, path.extname(file.path)))
+          .replace('{index}', String(i + 1).padStart(3, '0'));
+        const outputPath = path.join(outputFolder, outputName);
+
+        // Check if already exists
+        if (fs.existsSync(outputPath)) {
+          mainWindow.webContents.send('grok-conversion-progress', {
+            type: 'file-skip',
+            index: i,
+            file: file.name,
+            reason: 'Already exists'
+          });
+
+          // Save to history
+          db.addEntry({
+            inputPath: file.path,
+            outputPath,
+            status: 'skipped',
+            source: 'grok'
+          });
+          continue;
+        }
+
+        mainWindow.webContents.send('grok-conversion-progress', {
+          type: 'file-start',
+          index: i,
+          file: file.name
+        });
+
+        const result = await grokConverter.convert(file.path, outputPath, (stage, percent) => {
+          mainWindow.webContents.send('grok-conversion-progress', {
+            type: 'file-progress',
+            index: i,
+            file: file.name,
+            stage,
+            percent
+          });
+        });
+
+        // Save to history
+        db.addEntry({
+          inputPath: file.path,
+          outputPath,
+          status: result.success ? 'success' : (result.downloadFailed ? 'download_failed' : 'failed'),
+          error: result.error,
+          source: 'grok',
+          attempts: result.attempts,
+          videoUrl: result.videoUrl
+        });
+
+        mainWindow.webContents.send('grok-conversion-progress', {
+          type: 'file-complete',
+          index: i,
+          file: file.name,
+          success: result.success,
+          error: result.error,
+          outputPath,
+          videoUrl: result.videoUrl,
+          downloadFailed: result.downloadFailed
+        });
+
+        // Delay between files
+        if (i < files.length - 1 && grokConverter.isRunning()) {
+          await new Promise(resolve => setTimeout(resolve, delayBetween * 1000));
+        }
+      }
+
+    } catch (e) {
+      console.error('[GROK] Conversion error:', e);
+      mainWindow.webContents.send('grok-conversion-progress', {
+        type: 'error',
+        error: e.message
+      });
+    } finally {
+      await grokConverter.stop();
+      grokConverter = null;
+
+      mainWindow.webContents.send('grok-conversion-progress', {
+        type: 'complete'
+      });
+
+      // Show notification
+      if (Notification.isSupported()) {
+        new Notification({
+          title: 'Grok Video Converter',
+          body: 'Batch conversion completed!'
+        }).show();
+      }
+    }
+  })();
+
+  return { success: true };
+});
+
+// Stop Grok conversion
+ipcMain.handle('grok-stop-conversion', async () => {
+  if (grokConverter) {
+    grokConverter.stop();
+    return true;
+  }
+  return false;
+});
+
+// Retry Grok download
+ipcMain.handle('grok-retry-download', async (event, videoUrl, outputPath) => {
+  try {
+    const tempConverter = new GrokConverter({}, { headless: true });
+    await tempConverter.start();
+    const success = await tempConverter.retryDownload(videoUrl, outputPath);
+    await tempConverter.stop();
+    return { success };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 });
