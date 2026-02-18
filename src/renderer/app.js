@@ -1,6 +1,18 @@
 // ============================================
-// Meta Video Converter - Renderer Process
+// Grok Video Converter - Renderer Process
 // ============================================
+
+// Global error handler to prevent silent failures
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  if (typeof showToast === 'function') {
+    showToast(event.reason?.message || 'An unexpected error occurred', 'error');
+  }
+});
+
+window.addEventListener('error', (event) => {
+  console.error('Uncaught error:', event.error);
+});
 
 // State
 let files = [];

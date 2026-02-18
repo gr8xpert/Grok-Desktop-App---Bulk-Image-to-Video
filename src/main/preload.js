@@ -1,5 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Helper to safely register event listeners (removes previous to prevent leaks)
+function onEvent(channel, callback) {
+  ipcRenderer.removeAllListeners(channel);
+  ipcRenderer.on(channel, (event, data) => callback(data));
+}
+
 contextBridge.exposeInMainWorld('api', {
   // Config
   loadConfig: () => ipcRenderer.invoke('load-config'),
@@ -19,11 +25,11 @@ contextBridge.exposeInMainWorld('api', {
   // Conversion (Grok)
   startConversion: (options) => ipcRenderer.invoke('start-conversion', options),
   stopConversion: () => ipcRenderer.invoke('stop-conversion'),
-  onProgress: (callback) => ipcRenderer.on('conversion-progress', (event, data) => callback(data)),
+  onProgress: (callback) => onEvent('conversion-progress', callback),
 
   // Text to Video (Grok)
   startTextToVideo: (options) => ipcRenderer.invoke('start-text-to-video', options),
-  onTTVProgress: (callback) => ipcRenderer.on('ttv-progress', (event, data) => callback(data)),
+  onTTVProgress: (callback) => onEvent('ttv-progress', callback),
   importPromptsFile: () => ipcRenderer.invoke('import-prompts-file'),
 
   // History
@@ -71,7 +77,7 @@ contextBridge.exposeInMainWorld('api', {
   upscaleAI: (data) => ipcRenderer.invoke('upscale-ai', data),
   checkRealesrgan: () => ipcRenderer.invoke('check-realesrgan'),
   installRealesrgan: () => ipcRenderer.invoke('install-realesrgan'),
-  onRealesrganProgress: (callback) => ipcRenderer.on('realesrgan-progress', (e, data) => callback(data)),
+  onRealesrganProgress: (callback) => onEvent('realesrgan-progress', callback),
 
   // Presets
   savePreset: (data) => ipcRenderer.invoke('save-preset', data),
@@ -81,12 +87,12 @@ contextBridge.exposeInMainWorld('api', {
   // Batch & Thumbnails
   generateThumbnails: (data) => ipcRenderer.invoke('generate-thumbnails', data),
   batchEditImages: (data) => ipcRenderer.invoke('batch-edit-images', data),
-  onBatchEditProgress: (callback) => ipcRenderer.on('batch-edit-progress', (e, data) => callback(data)),
+  onBatchEditProgress: (callback) => onEvent('batch-edit-progress', callback),
 
   // Bulk Upscale
   startBulkUpscale: (options) => ipcRenderer.invoke('start-bulk-upscale', options),
   stopBulkUpscale: () => ipcRenderer.invoke('stop-bulk-upscale'),
-  onBulkUpscaleProgress: (callback) => ipcRenderer.on('bulk-upscale-progress', (e, data) => callback(data)),
+  onBulkUpscaleProgress: (callback) => onEvent('bulk-upscale-progress', callback),
 
   // Video Editor
   selectVideos: () => ipcRenderer.invoke('select-videos'),
@@ -95,5 +101,5 @@ contextBridge.exposeInMainWorld('api', {
   exportVideo: (options) => ipcRenderer.invoke('export-video', options),
   cancelVideoExport: () => ipcRenderer.invoke('cancel-video-export'),
   checkFFmpeg: () => ipcRenderer.invoke('check-ffmpeg'),
-  onVideoExportProgress: (callback) => ipcRenderer.on('video-export-progress', (e, data) => callback(data))
+  onVideoExportProgress: (callback) => onEvent('video-export-progress', callback)
 });

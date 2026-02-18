@@ -8,6 +8,60 @@ const { GrokConverter } = require('./grok-converter');
 const { Database } = require('./database');
 const VideoEditor = require('./video-editor');
 
+// ============ Shared Helpers ============
+
+// Sanitize text for safe SVG embedding (prevent XML injection)
+function sanitizeSvgText(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Apply common image edits to a Sharp instance (eliminates duplication)
+function applyImageEdits(image, edits) {
+  const { brightness, contrast, saturation, sharpness, blur, grayscale, sepia, negative } = edits;
+
+  const modulate = {};
+  if (brightness !== undefined && brightness !== null && brightness !== 1) {
+    modulate.brightness = brightness;
+  }
+  if (saturation !== undefined && saturation !== null && saturation !== 1) {
+    modulate.saturation = saturation;
+  }
+  if (Object.keys(modulate).length > 0) {
+    image = image.modulate(modulate);
+  }
+
+  if (contrast !== undefined && contrast !== null && contrast !== 1) {
+    image = image.linear(contrast, 128 * (1 - contrast));
+  }
+
+  if (sharpness !== undefined && sharpness > 0) {
+    image = image.sharpen({ sigma: sharpness });
+  }
+
+  if (blur !== undefined && blur > 0.3) {
+    image = image.blur(blur);
+  }
+
+  if (grayscale) {
+    image = image.grayscale();
+  }
+
+  if (sepia) {
+    image = image.tint({ r: 112, g: 66, b: 20 });
+  }
+
+  if (negative) {
+    image = image.negate();
+  }
+
+  return image;
+}
+
 // Real-ESRGAN paths (bundled with app)
 // In packaged app, assets are in extraResources at resources/realesrgan/
 // In development, they're at ../../assets/realesrgan relative to main.js
@@ -46,6 +100,7 @@ const presetsPath = path.join(app.getPath('userData'), 'editing-presets.json');
 
 let mainWindow;
 let converter = null;
+let grokConverter = null;
 let db = null;
 let videoEditor = null;
 
@@ -197,13 +252,14 @@ ipcMain.handle('scan-folder', async (event, folderPath, includeSubfolders) => {
   return images.sort((a, b) => a.name.localeCompare(b.name));
 });
 
-// Get image thumbnail (base64)
+// Get image thumbnail (base64) - resized to save memory
 ipcMain.handle('get-thumbnail', async (event, imagePath) => {
   try {
-    const data = fs.readFileSync(imagePath);
-    const ext = path.extname(imagePath).toLowerCase().replace('.', '');
-    const mimeType = ext === 'jpg' ? 'jpeg' : ext;
-    return `data:image/${mimeType};base64,${data.toString('base64')}`;
+    const buffer = await sharp(imagePath)
+      .resize(300, 300, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    return `data:image/jpeg;base64,${buffer.toString('base64')}`;
   } catch (e) {
     return null;
   }
@@ -842,60 +898,11 @@ ipcMain.handle('load-image-for-edit', async (event, imagePath) => {
 // Preview edited image (returns base64 without saving)
 ipcMain.handle('preview-image-edit', async (event, { imagePath, edits }) => {
   try {
-    // Read file into buffer to avoid file locking
     const inputBuffer = fs.readFileSync(imagePath);
     let image = sharp(inputBuffer);
-
-    // Get metadata from buffer
     const metadata = await sharp(inputBuffer).metadata();
 
-    // Apply edits
-    const { brightness, contrast, saturation, sharpness, blur, grayscale, sepia, negative } = edits;
-
-    // Modulate: brightness, saturation
-    const modulate = {};
-    if (brightness !== undefined && brightness !== 1) {
-      modulate.brightness = brightness;
-    }
-    if (saturation !== undefined && saturation !== 1) {
-      modulate.saturation = saturation;
-    }
-    if (Object.keys(modulate).length > 0) {
-      image = image.modulate(modulate);
-    }
-
-    // Linear for contrast (contrast is applied as a multiplier)
-    if (contrast !== undefined && contrast !== 1) {
-      // Contrast: multiply and offset to keep midtones stable
-      const a = contrast;
-      const b = 128 * (1 - contrast);
-      image = image.linear(a, b);
-    }
-
-    // Sharpen
-    if (sharpness !== undefined && sharpness > 0) {
-      image = image.sharpen({ sigma: sharpness });
-    }
-
-    // Blur
-    if (blur !== undefined && blur > 0.3) {
-      image = image.blur(blur);
-    }
-
-    // Grayscale
-    if (grayscale) {
-      image = image.grayscale();
-    }
-
-    // Sepia (tint with sepia color)
-    if (sepia) {
-      image = image.tint({ r: 112, g: 66, b: 20 });
-    }
-
-    // Negative/Invert
-    if (negative) {
-      image = image.negate();
-    }
+    image = applyImageEdits(image, edits);
 
     const buffer = await image.toBuffer();
     const base64 = `data:image/${metadata.format};base64,${buffer.toString('base64')}`;
@@ -910,62 +917,19 @@ ipcMain.handle('preview-image-edit', async (event, { imagePath, edits }) => {
 // Save edited image
 ipcMain.handle('save-edited-image', async (event, { imagePath, edits, outputPath }) => {
   try {
-    // Read the file into a buffer first to avoid file locking issues
     const inputBuffer = fs.readFileSync(imagePath);
     let image = sharp(inputBuffer);
 
-    // Apply edits (same as preview)
-    const { brightness, contrast, saturation, sharpness, blur, grayscale, sepia, negative } = edits;
+    image = applyImageEdits(image, edits);
 
-    const modulate = {};
-    if (brightness !== undefined && brightness !== 1) {
-      modulate.brightness = brightness;
-    }
-    if (saturation !== undefined && saturation !== 1) {
-      modulate.saturation = saturation;
-    }
-    if (Object.keys(modulate).length > 0) {
-      image = image.modulate(modulate);
-    }
-
-    if (contrast !== undefined && contrast !== 1) {
-      const a = contrast;
-      const b = 128 * (1 - contrast);
-      image = image.linear(a, b);
-    }
-
-    if (sharpness !== undefined && sharpness > 0) {
-      image = image.sharpen({ sigma: sharpness });
-    }
-
-    if (blur !== undefined && blur > 0.3) {
-      // Sharp requires blur > 0.3
-      image = image.blur(blur);
-    }
-
-    if (grayscale) {
-      image = image.grayscale();
-    }
-
-    if (sepia) {
-      image = image.tint({ r: 112, g: 66, b: 20 });
-    }
-
-    if (negative) {
-      image = image.negate();
-    }
-
-    // Determine output path
     let savePath = outputPath;
     if (!savePath) {
-      // Save as new file with _edited suffix
       const ext = path.extname(imagePath);
       const base = path.basename(imagePath, ext);
       const dir = path.dirname(imagePath);
       savePath = path.join(dir, `${base}_edited${ext}`);
     }
 
-    // Since we loaded from buffer, we can now safely write to the same path
     await image.toFile(savePath);
 
     return { success: true, outputPath: savePath };
@@ -1123,10 +1087,12 @@ ipcMain.handle('install-realesrgan', async (event) => {
 
     mainWindow.webContents.send('realesrgan-progress', { stage: 'Extracting...', percent: 60 });
 
-    // Extract zip using PowerShell (Windows)
+    // Extract zip using PowerShell (Windows) — uses execFile to prevent command injection
     await new Promise((resolve, reject) => {
-      const { exec } = require('child_process');
-      exec(`powershell -command "Expand-Archive -Path '${zipPath}' -DestinationPath '${realesrganDir}' -Force"`, (error) => {
+      execFile('powershell', [
+        '-NoProfile', '-NonInteractive', '-Command',
+        `Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${realesrganDir.replace(/'/g, "''")}' -Force`
+      ], (error) => {
         if (error) reject(error);
         else resolve();
       });
@@ -1259,18 +1225,22 @@ ipcMain.handle('add-watermark', async (event, { imagePath, watermark }) => {
     const inputBuffer = fs.readFileSync(imagePath);
     const metadata = await sharp(inputBuffer).metadata();
 
-    // Create SVG watermark
+    const safeText = sanitizeSvgText(text);
+    const safeFontSize = parseInt(fontSize, 10) || 24;
+    const safeOpacity = parseFloat(opacity) || 0.5;
+    const safeColor = /^[a-zA-Z]+$|^#[0-9a-fA-F]{3,8}$/.test(color || '') ? color : 'white';
+
     const svgText = `
       <svg width="${metadata.width}" height="${metadata.height}">
         <style>
           .watermark {
-            fill: ${color || 'white'};
-            font-size: ${fontSize || 24}px;
+            fill: ${safeColor};
+            font-size: ${safeFontSize}px;
             font-family: Arial, sans-serif;
-            opacity: ${opacity || 0.5};
+            opacity: ${safeOpacity};
           }
         </style>
-        <text x="${metadata.width - 20}" y="${metadata.height - 20}" text-anchor="end" class="watermark">${text}</text>
+        <text x="${metadata.width - 20}" y="${metadata.height - 20}" text-anchor="end" class="watermark">${safeText}</text>
       </svg>
     `;
 
@@ -1315,7 +1285,7 @@ ipcMain.handle('export-image', async (event, { imagePath, edits, format, quality
     // Apply all edits if provided
     if (edits) {
       console.log('[EXPORT] Applying edits:', edits);
-      const { brightness, contrast, saturation, sharpness, blur, grayscale, sepia, negative, rotation, flipH, flipV, crop, watermark, upscaleScale, aiUpscaleTempPath } = edits;
+      const { rotation, flipH, flipV, crop, watermark, upscaleScale, aiUpscaleTempPath } = edits;
 
       // Apply basic upscale if set (skip if AI upscale was used)
       if (upscaleScale && upscaleScale > 1 && !aiUpscaleTempPath) {
@@ -1346,52 +1316,27 @@ ipcMain.handle('export-image', async (event, { imagePath, edits, format, quality
         image = image.flip();
       }
 
-      const modulate = {};
-      if (brightness !== undefined && brightness !== null && brightness !== 1) {
-        modulate.brightness = brightness;
-      }
-      if (saturation !== undefined && saturation !== null && saturation !== 1) {
-        modulate.saturation = saturation;
-      }
-      if (Object.keys(modulate).length > 0) {
-        image = image.modulate(modulate);
-      }
+      // Apply shared image edits (brightness, contrast, saturation, etc.)
+      image = applyImageEdits(image, edits);
 
-      if (contrast !== undefined && contrast !== null && contrast !== 1) {
-        image = image.linear(contrast, 128 * (1 - contrast));
-      }
-
-      if (sharpness && sharpness > 0) {
-        image = image.sharpen({ sigma: sharpness });
-      }
-      if (blur && blur > 0.3) {
-        // Sharp requires blur sigma > 0.3
-        image = image.blur(blur);
-      }
-      if (grayscale) {
-        image = image.grayscale();
-      }
-      if (sepia) {
-        image = image.tint({ r: 112, g: 66, b: 20 });
-      }
-      if (negative) {
-        image = image.negate();
-      }
-
-      // Apply watermark if present
+      // Apply watermark if present (with sanitized text to prevent SVG injection)
       if (watermark && watermark.text) {
-        console.log('[EXPORT] Applying watermark:', watermark);
+        console.log('[EXPORT] Applying watermark');
+        const safeText = sanitizeSvgText(watermark.text);
+        const fontSize = parseInt(watermark.fontSize, 10) || 24;
+        const opacity = parseFloat(watermark.opacity) || 0.5;
+        const color = /^[a-zA-Z]+$|^#[0-9a-fA-F]{3,8}$/.test(watermark.color || '') ? watermark.color : 'white';
         const svgText = `
           <svg width="${metadata.width}" height="${metadata.height}">
             <style>
               .watermark {
-                fill: ${watermark.color || 'white'};
-                font-size: ${watermark.fontSize || 24}px;
+                fill: ${color};
+                font-size: ${fontSize}px;
                 font-family: Arial, sans-serif;
-                opacity: ${watermark.opacity || 0.5};
+                opacity: ${opacity};
               }
             </style>
-            <text x="${metadata.width - 20}" y="${metadata.height - 20}" text-anchor="end" class="watermark">${watermark.text}</text>
+            <text x="${metadata.width - 20}" y="${metadata.height - 20}" text-anchor="end" class="watermark">${safeText}</text>
           </svg>
         `;
         image = image.composite([{ input: Buffer.from(svgText), gravity: 'southeast' }]);
@@ -1594,23 +1539,7 @@ ipcMain.handle('batch-edit-images', async (event, { imagePaths, edits, outputFol
       const inputBuffer = fs.readFileSync(imagePath);
       let image = sharp(inputBuffer);
 
-      // Apply edits
-      const { brightness, contrast, saturation, sharpness, blur, grayscale, sepia, negative } = edits;
-
-      const modulate = {};
-      if (brightness !== undefined && brightness !== 1) modulate.brightness = brightness;
-      if (saturation !== undefined && saturation !== 1) modulate.saturation = saturation;
-      if (Object.keys(modulate).length > 0) image = image.modulate(modulate);
-
-      if (contrast !== undefined && contrast !== 1) {
-        image = image.linear(contrast, 128 * (1 - contrast));
-      }
-
-      if (sharpness > 0) image = image.sharpen({ sigma: sharpness });
-      if (blur > 0) image = image.blur(blur);
-      if (grayscale) image = image.grayscale();
-      if (sepia) image = image.tint({ r: 112, g: 66, b: 20 });
-      if (negative) image = image.negate();
+      image = applyImageEdits(image, edits);
 
       // Set format
       const q = quality || 90;

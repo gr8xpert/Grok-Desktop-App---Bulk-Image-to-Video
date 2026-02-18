@@ -101,7 +101,7 @@ class VideoEditor {
               duration: parseFloat(info.format?.duration) || 0,
               width: videoStream?.width || 0,
               height: videoStream?.height || 0,
-              fps: eval(videoStream?.r_frame_rate) || 30,
+              fps: this._parseFrameRate(videoStream?.r_frame_rate) || 30,
               hasAudio: !!audioStream,
               codec: videoStream?.codec_name || 'unknown'
             });
@@ -657,6 +657,19 @@ class VideoEditor {
 
       this.currentProcess.on('error', reject);
     });
+  }
+
+  // Parse frame rate string like "30/1" or "24000/1001" safely (no eval)
+  _parseFrameRate(fpsString) {
+    if (!fpsString) return 30;
+    const parts = fpsString.split('/');
+    if (parts.length === 2) {
+      const num = parseInt(parts[0], 10);
+      const den = parseInt(parts[1], 10);
+      if (den > 0) return num / den;
+    }
+    const parsed = parseFloat(fpsString);
+    return isNaN(parsed) ? 30 : parsed;
   }
 
   // Cancel current operation
