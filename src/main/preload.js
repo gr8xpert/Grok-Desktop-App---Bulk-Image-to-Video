@@ -13,13 +13,18 @@ contextBridge.exposeInMainWorld('api', {
   scanFolder: (path, includeSubfolders) => ipcRenderer.invoke('scan-folder', path, includeSubfolders),
   getThumbnail: (path) => ipcRenderer.invoke('get-thumbnail', path),
 
-  // Cookies
+  // Cookies (Grok)
   validateCookies: (cookies) => ipcRenderer.invoke('validate-cookies', cookies),
 
-  // Conversion
+  // Conversion (Grok)
   startConversion: (options) => ipcRenderer.invoke('start-conversion', options),
   stopConversion: () => ipcRenderer.invoke('stop-conversion'),
   onProgress: (callback) => ipcRenderer.on('conversion-progress', (event, data) => callback(data)),
+
+  // Text to Video (Grok)
+  startTextToVideo: (options) => ipcRenderer.invoke('start-text-to-video', options),
+  onTTVProgress: (callback) => ipcRenderer.on('ttv-progress', (event, data) => callback(data)),
+  importPromptsFile: () => ipcRenderer.invoke('import-prompts-file'),
 
   // History
   getHistory: (options) => ipcRenderer.invoke('get-history', options),
@@ -43,13 +48,6 @@ contextBridge.exposeInMainWorld('api', {
 
   // Retry download
   retryDownload: (data) => ipcRenderer.invoke('retry-download', data),
-
-  // Text-to-Image
-  startTTIGeneration: (options) => ipcRenderer.invoke('start-tti-generation', options),
-  stopTTIGeneration: () => ipcRenderer.invoke('stop-tti-generation'),
-  onTTIProgress: (callback) => ipcRenderer.on('tti-progress', (event, data) => callback(data)),
-  getTTIPresets: () => ipcRenderer.invoke('get-tti-presets'),
-  importPromptsFile: () => ipcRenderer.invoke('import-prompts-file'),
 
   // Gallery
   scanGallery: (folderPath) => ipcRenderer.invoke('scan-gallery', folderPath),

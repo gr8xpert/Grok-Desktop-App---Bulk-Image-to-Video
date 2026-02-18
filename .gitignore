@@ -7,6 +7,7 @@ dist/
 # Database
 *.db
 *.sqlite
+*.json.bak
 
 # Logs
 *.log
@@ -22,3 +23,11 @@ Thumbs.db
 
 # Config with sensitive data
 config.json
+
+# Debug artifacts
+debug_*.png
+grok_*_debug.png
+network-requests.log
+
+# Test scripts
+test-*.js

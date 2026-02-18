@@ -1,7 +1,7 @@
 {
-  "name": "meta-video-converter",
-  "version": "3.27.0",
-  "description": "Convert images to AI-animated videos using Meta AI",
+  "name": "grok-video-converter",
+  "version": "1.0.0",
+  "description": "Convert images to AI-animated videos using Grok AI",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
@@ -20,8 +20,8 @@
     "sharp": "^0.33.0"
   },
   "build": {
-    "appId": "com.gr8xpert.metavideoconverter",
-    "productName": "Meta Video Converter",
+    "appId": "com.gr8xpert.grokvideoconverter",
+    "productName": "Grok",
     "directories": {
       "output": "dist"
     },

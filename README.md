@@ -1,182 +1,169 @@
-# Meta Video Converter v3.27.0
+# Grok Desktop App - Bulk Image to Video Converter v4.0.0
 
-A powerful desktop application that converts images to AI-animated videos, generates images from text prompts, provides advanced image editing capabilities, video editing with transitions/voice over/music, and bulk upscaling using AI.
+A powerful Windows desktop application that converts images to AI-animated videos, generates images/videos from text prompts, provides advanced image editing, video editing with transitions/voice over/music, and bulk AI upscaling — all powered by [Grok AI](https://grok.com).
+
+![Electron](https://img.shields.io/badge/Electron-28+-47848F?logo=electron&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue)
+![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)
+
+---
 
 ## Features
 
 ### Image to Video Conversion
-- **Bulk Processing**: Convert multiple images to videos at once
-- **Drag & Drop**: Easy file/folder selection with drag and drop support
-- **Animation Presets**: Multiple built-in presets (Cinematic, Zoom, Pan, Parallax, etc.)
-- **Custom Prompts**: Create your own animation styles with custom prompts
-- **Progress Tracking**: Real-time progress tracking with file-by-file status
-- **Auto-add to Editor**: Optionally send converted videos directly to Video Editor
-- **Conversion History**: Track all conversions with retry option for failed ones
-- **Headless Mode**: Run conversions in the background without browser window
-- **Resume Support**: Continue interrupted conversions
-- **Retry Downloads**: Retry failed video downloads without regenerating
+- **Bulk Processing** — Convert multiple images to AI-animated videos at once
+- **Drag & Drop** — Easy file/folder selection
+- **Animation Presets** — Cinematic, Zoom, Pan, Parallax, Floating, Dramatic, Nature, Portrait
+- **Custom Prompts** — Write your own animation style descriptions
+- **Progress Tracking** — Real-time per-file status updates
+- **Auto-add to Video Editor** — Optionally send converted videos straight to the timeline
+- **Headless Mode** — Run in background without a browser window
+- **Resume Support** — Continue interrupted conversions
+- **Retry Downloads** — Retry failed downloads without regenerating
+
+### Text to Video Generation
+- **Direct Video from Text** — Grok generates video directly from text prompts
+- **Aspect Ratio Selection** — 9:16 (Shorts), 16:9 (YouTube), 1:1 (Square), 4:5 (Portrait)
+- **Bulk Prompts** — Queue multiple prompts, import from `.txt` files
+- **Naming Patterns** — Customizable output filenames with `{prompt}`, `{index}`, `{timestamp}`
 
 ### Text to Image Generation
-- **AI Image Generation**: Generate images from text prompts using Meta AI
-- **Aspect Ratio Support**: Choose from 16:9 (YouTube), 9:16 (Reels), or 1:1 (Instagram)
-- **Style Presets**: Realistic, Artistic, Anime, 3D Render, Fantasy, Cinematic, Minimalist
-- **Bulk Generation**: Queue multiple prompts and generate them all at once
-- **Import Prompts**: Load prompts from a .txt file for batch processing
-- **Optional Video Conversion**: Automatically convert generated images to videos
-- **Auto-add to Editor**: Send generated videos directly to Video Editor timeline
+- **AI Image Generation** — Generate images from text using Grok
+- **Style Presets** — Realistic, Artistic, Anime, 3D Render, Fantasy, Cinematic, Minimalist
+- **Aspect Ratios** — 16:9, 9:16, 1:1
+- **Bulk Generation** — Queue multiple prompts
+- **Import Prompts** — Load prompts from `.txt` files
+- **Optional Video Conversion** — Automatically convert generated images to video
 
 ### Gallery
-- **Media Browser**: View all generated images and videos in one place
-- **Filter by Type**: Filter to show All, Images only, or Videos only
-- **Quick Actions**: View, edit, open folder, or delete directly from thumbnails
-- **Auto-refresh**: Gallery updates automatically when new content is created
+- **Media Browser** — View all generated images and videos
+- **Filter by Type** — All, Images, Videos
+- **Quick Actions** — View, edit, open in folder, delete
+- **Auto-refresh** — Updates when new content is created
 
 ### Image Editor
-Full-featured image editor accessible from the Gallery:
+Full-featured editor accessible from the Gallery:
 
-#### Adjustments
-- **Brightness**: Adjust image brightness (0-200%)
-- **Contrast**: Adjust image contrast (0-200%)
-- **Saturation**: Adjust color saturation (0-200%)
-- **Sharpness**: Sharpen images (0-10)
-- **Blur**: Apply gaussian blur (0-10)
-
-#### Filters
-- **Grayscale**: Convert to black and white
-- **Sepia**: Apply vintage sepia tone
-- **Negative/Invert**: Invert all colors
-
-#### Transform
-- **Rotate**: Rotate 90° left, 90° right, or 180°
-- **Flip**: Flip horizontally or vertically
-- **Resize**: Custom dimensions with aspect ratio lock
-
-#### Export Options
-- **Format Selection**: Save as JPEG, PNG, or WebP
-- **Quality Control**: Adjustable quality slider (10-100%)
-- **Watermark**: Add custom text watermark with size and opacity controls
-- **Quick Thumbnails**: Generate multiple social media sizes at once:
-  - YouTube (1280x720)
-  - Instagram (1080x1080)
-  - Twitter (1200x675)
-  - Facebook (1200x630)
-
-#### Editor Presets
-- **Save Presets**: Save your adjustment settings for reuse
-- **Load Presets**: Quickly apply saved settings
-- **Before/After**: Compare slider to see original vs edited
-
-### Video Editor
-Powerful video editing with timeline, transitions, voice over, and background music:
-
-- **Drag & Drop Timeline**: Arrange video clips visually with scroll navigation
-- **Video Transitions**: Fade, dissolve, wipe, slide, and more
-- **Voice Over**: Add voice over audio with volume control and option to replace original audio
-- **Background Music**: Add music with volume control and fade in/out
-- **Auto-add from Conversion**: Automatically add converted videos to timeline
-- **Export Options**: High quality export with Windows Media Player compatibility
-- **Real-time Preview**: Preview clips before export
-- **Remembers Settings**: Output folder persists between sessions
+| Category | Features |
+|----------|----------|
+| **Adjustments** | Brightness, Contrast, Saturation, Sharpness, Blur |
+| **Filters** | Grayscale (B&W), Sepia, Negative/Invert |
+| **Transform** | Rotate (90/180), Flip (H/V), Resize with aspect lock |
+| **Export** | JPEG/PNG/WebP, quality slider, watermark |
+| **Thumbnails** | One-click YouTube, Instagram, Twitter, Facebook sizes |
+| **Presets** | Save/load adjustment presets, Before/After compare slider |
 
 ### Bulk Upscale
-Dedicated tab for batch AI upscaling multiple images:
+- **AI Upscale** — High-quality enhancement via Real-ESRGAN (bundled)
+- **Scale Factors** — 2x, 3x, 4x enlargement
+- **Output Format** — Same as original, PNG, JPG, or WebP
+- **Batch Processing** — Process entire folders with progress tracking
 
-- **Drag & Drop**: Add multiple images at once
-- **AI Upscale**: High-quality enhancement using Real-ESRGAN
-- **Scale Factors**: 2x, 3x, or 4x enlargement
-- **Output Format**: Same as original, PNG, JPG, or WebP
-- **Progress Tracking**: Real-time progress with per-file status
-- **Batch Processing**: Process entire folders of images
+### Video Editor
+- **Drag & Drop Timeline** — Arrange clips visually with scroll navigation
+- **10+ Transitions** — Fade, dissolve, slide, wipe, circle, pixelize
+- **Voice Over** — Add voice audio with volume control; optionally replace original audio
+- **Background Music** — Add music with independent volume controls and fade in/out
+- **High-Quality Export** — H.264, AAC, Windows Media Player compatible
+- **Real-time Preview** — Preview clips before export
+
+---
+
+## Screenshots
+
+> _Add screenshots of the application here._
+
+---
 
 ## Installation
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
+- **Windows 10/11**
+- **Node.js 18+**
+- **Google Chrome** (required for Grok AI automation)
 
 ### Setup
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/gr8xpert/Meta-Desktop-App---Bulk-Image-to-Video.git
-cd Meta-Desktop-App---Bulk-Image-to-Video
-```
+# Clone the repository
+git clone https://github.com/gr8xpert/Grok-Desktop-App---Bulk-Image-to-Video.git
+cd Grok-Desktop-App---Bulk-Image-to-Video
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
-```
 
-3. Run in development mode:
-```bash
+# Run in development mode
 npm start
-```
 
-4. Build portable executable:
-```bash
+# Build portable executable
 npm run build:win
 ```
 
-The portable `.exe` will be created in the `dist` folder.
+The portable `.exe` will be created in the `dist/` folder.
+
+---
 
 ## Configuration
 
-### Meta AI Authentication
+### Grok Authentication
 
-To use the image/video generation features, you need to provide your Meta AI cookies:
+To use AI generation features, you need Grok cookies:
 
-1. Go to [meta.ai](https://www.meta.ai) and log in
-2. Open DevTools (F12) → Application → Cookies → meta.ai
-3. Copy the following cookie values:
-   - `datr` (required)
-   - `abra_sess` (required)
-4. Paste them in the Settings tab of the app
-5. Click "Validate Cookies" to verify
+1. Go to [grok.com](https://grok.com) and log in
+2. Open DevTools (`F12`) → **Application** → **Cookies** → `grok.com`
+3. Copy these cookie values:
+   - `sso` (required)
+   - `sso-rw` (required)
+4. Paste them in the **Settings** tab of the app
+5. Click **Validate Cookies** to verify
 
-**Note**: Image editing, gallery, and bulk upscale features work without Meta AI authentication.
+> **Note:** Image editing, gallery, bulk upscale, and video editor features work without authentication.
+
+---
 
 ## Usage
 
-### Image to Video Conversion
-1. **Add Images**: Drag & drop images/folders or click "Select Files"/"Select Folder"
-2. **Choose Output**: Select where to save the generated videos
-3. **Select Preset**: Choose an animation style or create a custom prompt
-4. **Start Conversion**: Click "Start Conversion" and wait for processing
-5. **View Results**: Check the History tab or Gallery for completed videos
+### Image to Video
+1. Drag & drop images or select files/folder
+2. Choose output folder
+3. Select an animation preset or write a custom prompt
+4. Click **Start Conversion**
 
-### Text to Image Generation
-1. **Go to "Text to Image" tab**
-2. **Enter Prompt**: Describe the image you want to generate
-3. **Select Style**: Choose a style preset or "None" for exact prompt
-4. **Choose Aspect Ratio**: 16:9, 9:16, or 1:1
-5. **Add to Queue**: Click "Add to Queue" (or import from .txt file)
-6. **Generate**: Click "Start Generation" to process all prompts
-7. **Optional**: Enable "Convert to Video" to also animate the generated images
+### Text to Video
+1. Go to the **Text to Video** tab
+2. Enter prompts (or import from `.txt`)
+3. Select aspect ratio
+4. Click **Start Generation**
+
+### Text to Image
+1. Go to the **Text to Image** tab
+2. Enter prompts with optional style presets
+3. Choose aspect ratio
+4. Click **Start Generation**
+5. Optionally enable **Convert to Video** for auto-animation
 
 ### Bulk Upscaling
-1. **Go to "Upscale" tab**
-2. **Add Images**: Drag & drop or select files/folder
-3. **Select Scale**: 2x, 3x, or 4x
-4. **Set Output**: Choose output folder and format
-5. **Start**: Click "Start Upscaling"
+1. Go to the **Upscale** tab
+2. Add images via drag & drop
+3. Select scale (2x / 3x / 4x) and output format
+4. Click **Start Upscaling**
 
 ### Video Editing
-1. **Go to "Video Editor" tab**
-2. **Add Clips**: Drag & drop videos or click "Add Videos" (or use auto-add from conversion)
-3. **Arrange Timeline**: Drag clips to reorder, use scroll buttons for long timelines
-4. **Add Transitions**: Choose transition style and duration
-5. **Add Voice Over**: Select voice over audio file and adjust volume
-6. **Add Music**: Select background music and adjust volumes
-7. **Export**: Click "Export Video" for high-quality output
+1. Go to the **Video Editor** tab
+2. Add videos to the timeline
+3. Set transitions, add voice over or music
+4. Click **Export Video**
 
 ### Image Editing
-1. **Go to "Gallery" tab**
-2. **Click Edit**: Hover over an image and click the edit (pencil) icon
-3. **Make Adjustments**: Use sliders, filters, transform tools
-4. **Preview**: Toggle "Before/After" to compare changes
-5. **Save**: Click "Save" to overwrite or "Save as New" for a copy
+1. Go to **Gallery**, hover an image, click the edit icon
+2. Adjust brightness, contrast, filters, etc.
+3. Use **Before/After** toggle to compare
+4. Click **Save** or **Save as New**
 
-## Animation Presets (Image to Video)
+---
+
+## Animation Presets
 
 | Preset | Description |
 |--------|-------------|
@@ -185,155 +172,131 @@ To use the image/video generation features, you need to provide your Meta AI coo
 | Zoom Out | Slowly zoom out revealing more of the scene |
 | Pan Left | Smooth horizontal pan from right to left |
 | Pan Right | Smooth horizontal pan from left to right |
-| Parallax | Depth effect with foreground/background moving differently |
-| Floating | Gentle floating motion, dreamlike and ethereal |
+| Parallax | Depth effect, foreground/background at different speeds |
+| Floating | Gentle floating, dreamlike and ethereal |
 | Dramatic | Dramatic slow motion with intense atmosphere |
-| Nature | Natural movement like wind, water, or wildlife |
+| Nature | Natural movement — wind, water, wildlife |
 | Portrait | Subtle life-like motion for portraits |
-| Custom | Your own custom animation prompt |
+| Custom | Your own animation prompt |
 
-## Style Presets (Text to Image)
-
-| Preset | Prefix Added to Prompt |
-|--------|------------------------|
-| Realistic Photo | "Photorealistic image of " |
-| Artistic | "Artistic illustration of " |
-| Anime Style | "Anime style image of " |
-| 3D Render | "3D rendered image of " |
-| Fantasy Art | "Fantasy art of " |
-| Cinematic | "Cinematic shot of " |
-| Minimalist | "Minimalist design of " |
-| None | No prefix - uses your exact prompt |
+---
 
 ## Tech Stack
 
-- **Electron** - Desktop application framework
-- **Playwright** - Browser automation for Meta AI interaction
-- **Sharp** - Image processing and manipulation
-- **FFmpeg** - Video processing (merging, transitions, captions)
-- **Real-ESRGAN** - AI-powered image upscaling
-- **SQLite** - Local database for history
-- **Node.js** - Backend runtime
+| Technology | Purpose |
+|------------|---------|
+| **Electron** | Desktop application framework |
+| **Playwright** | Browser automation for Grok AI |
+| **Sharp** | Image processing (edits, thumbnails, watermarks) |
+| **FFmpeg** | Video processing (merge, transitions, music, voice over) |
+| **Real-ESRGAN** | AI-powered image upscaling |
+| **Node.js** | Backend runtime |
+
+---
 
 ## Project Structure
 
 ```
-meta-video-converter-electron/
+grok-video-converter-electron/
 ├── assets/
-│   ├── realesrgan/          # Real-ESRGAN binaries and models
-│   ├── ffmpeg/              # FFmpeg binaries (ffmpeg.exe, ffprobe.exe)
-│   └── icon.ico             # App icon
+│   ├── ffmpeg/                # Bundled FFmpeg binaries
+│   │   ├── ffmpeg.exe
+│   │   ├── ffprobe.exe
+│   │   └── README.txt
+│   └── realesrgan/            # Bundled Real-ESRGAN binaries & models
+│       ├── realesrgan-ncnn-vulkan.exe
+│       ├── vcomp140.dll
+│       └── models/
 ├── src/
 │   ├── main/
-│   │   ├── main.js          # Electron main process & IPC handlers
-│   │   ├── preload.js       # Preload script for IPC bridge
-│   │   ├── converter.js     # Meta AI automation logic
-│   │   ├── database.js      # SQLite database for history
-│   │   └── video-editor.js  # FFmpeg video processing (transitions, music, voice over)
+│   │   ├── main.js            # Electron main process & IPC handlers
+│   │   ├── preload.js         # Secure IPC bridge (contextBridge)
+│   │   ├── grok-converter.js  # Grok AI browser automation
+│   │   ├── video-editor.js    # FFmpeg video processing
+│   │   ├── captions.js        # Caption/subtitle generation (ASS format)
+│   │   └── database.js        # JSON-based history storage
 │   └── renderer/
-│       ├── index.html       # Main UI with all tabs
-│       ├── app.js           # Renderer process logic
-│       └── styles.css       # UI styling (glassmorphic dark theme)
-├── dist/                    # Build output
+│       ├── index.html         # UI — all tabs
+│       ├── app.js             # Renderer logic
+│       └── styles.css         # Dark glassmorphic theme
 ├── package.json
+├── .gitignore
 └── README.md
 ```
 
-## Changelog
-
-### v3.27.0
-- **Auto-add to Video Editor**: Converted videos can be automatically added to Video Editor timeline
-- **Voice Over**: Replaced captions with voice over feature - add voice audio with volume control
-- **Replace Audio Option**: Option to replace original audio with voice over
-- **Persistent Settings**: Video Editor output folder now remembers last location
-- **UI Improvements**: Renamed "Convert" tab to "Image to Video", compact sidebar layout
-- **Timeline Navigation**: Added scroll buttons for navigating long timelines
-- Improved Windows Media Player compatibility for exported videos
-
-### v3.24.0
-- Added timeline scroll navigation buttons
-- Fixed Video Editor layout and accordion behavior
-- Fixed add music for videos without audio track
-
-### v3.23.0
-- Added **Video Editor** tab for editing videos with transitions
-- **Timeline**: Drag & drop clips with visual arrangement
-- **Transitions**: 10+ transition styles (fade, dissolve, wipe, etc.)
-- **Background Music**: Add music with volume control and fade
-- **Export**: High quality export options
-- Requires FFmpeg (place in assets/ffmpeg or system PATH)
-
-### v3.22.0
-- Added **Bulk Upscale** tab for batch AI image upscaling
-- AI upscaling powered by Real-ESRGAN for high-quality results
-- Scale factors: 2x, 3x, 4x
-- Output format selection (same/PNG/JPG/WebP)
-- Progress tracking with per-file status
-- Removed upscale from Image Editor (use dedicated Upscale tab instead)
-- Fixed stop button styling
-- Fixed gallery folder icon functionality
-
-### v3.21.x
-- Added **Gallery** tab with media browser
-- Added **Image Editor** with adjustments, filters, transform
-- Added **Before/After** compare slider
-- Added **Watermark** support
-- Added **Quick Thumbnails** generation
-- Added **Editor Presets** save/load
-- Fixed AI upscale artifacts with proper model selection
-- Fixed file locking issues on Windows
-- Fixed gallery thumbnail overlapping
-
-### v3.20.x
-- Added **Text to Image** generation
-- Aspect ratio support (16:9, 9:16, 1:1)
-- Style presets for image generation
-- Bulk prompt import from .txt files
-- Optional automatic video conversion
-
-### v3.1x.x
-- Initial bulk image to video conversion
-- Animation presets
-- Retry downloads feature
-- Headless mode
-- Conversion history with retry
+---
 
 ## Troubleshooting
 
 ### Cookies Invalid
-- Make sure you're logged into Meta AI in your browser
-- Copy the exact cookie values without any extra spaces
-- Cookies may expire - refresh them if validation fails
+- Make sure you're logged into [grok.com](https://grok.com) in Chrome
+- Copy exact cookie values without extra spaces
+- Cookies expire — refresh them if validation fails
 
 ### Conversion Fails
 - Check your internet connection
-- Meta AI may have rate limits - increase delay between files (Settings)
-- Try disabling headless mode in Settings
+- Grok may have rate limits — increase delay between files in **Settings**
+- Try disabling **Headless Mode**
 
 ### AI Upscale Not Working
-- Real-ESRGAN binaries are bundled with the app
-- Make sure the `assets/realesrgan` folder contains the executable
-- Check that your GPU drivers are up to date (Vulkan support required)
+- Real-ESRGAN is bundled; ensure `assets/realesrgan/` has the `.exe` and models
+- GPU drivers must be up to date (Vulkan support required)
+- If no Vulkan GPU, upscale will fail — use Basic upscale as a fallback
 
 ### Video Editor Not Working
-- FFmpeg is required for video editing features
-- Download FFmpeg from: https://www.gyan.dev/ffmpeg/builds/
+- FFmpeg is bundled in `assets/ffmpeg/`
+- If missing, download from [gyan.dev/ffmpeg](https://www.gyan.dev/ffmpeg/builds/)
 - Place `ffmpeg.exe` and `ffprobe.exe` in `assets/ffmpeg/`
-- Or install FFmpeg system-wide and add to PATH
 
 ### Video Not Downloading
-- The app uses multiple fallback download methods
-- Click "Retry Downloads" for failed downloads
-- If URL expired, use "Retry Generation" to regenerate
+- The app uses multiple download fallback methods
+- Click **Retry Downloads** for failed ones
+- If the URL expired, the video needs to be regenerated
+
+---
+
+## Changelog
+
+### v4.0.0 — Grok Migration & Code Quality
+- **Migrated from Meta AI to Grok AI** — all generation now uses grok.com
+- **Security fixes** — removed `eval()`, fixed SVG injection, command injection prevention
+- **Memory optimizations** — proper thumbnail generation, IPC listener cleanup
+- **Code cleanup** — extracted shared image editing logic, removed dead code
+- **Added global error handler** in renderer for better debugging
+- **CSP fix** — Google Fonts now load correctly
+
+### v3.27.0
+- Auto-add to Video Editor, Voice Over, persistent settings
+- Timeline scroll navigation, Windows Media Player compatibility
+
+### v3.24.0
+- Timeline scroll buttons, layout fixes, music fixes for silent videos
+
+### v3.23.0
+- Video Editor tab with timeline, transitions, background music, export
+
+### v3.22.0
+- Bulk Upscale tab with AI upscaling (Real-ESRGAN)
+
+### v3.21.x
+- Gallery, Image Editor, Before/After compare, watermarks, thumbnails, presets
+
+### v3.20.x
+- Text to Image generation, aspect ratios, style presets, bulk import
+
+### v3.1x.x
+- Initial bulk image-to-video, animation presets, retry, headless mode, history
+
+---
 
 ## License
 
-MIT License
+MIT License — see [LICENSE](LICENSE) for details.
 
 ## Author
 
 **gr8xpert** (Shahzaib Aslam)
 
-## Disclaimer
+---
 
-This tool is for personal use only. Please respect Meta AI's terms of service and usage limits.
+> **Disclaimer:** This tool is for personal use. Please respect Grok AI's terms of service and usage limits.
