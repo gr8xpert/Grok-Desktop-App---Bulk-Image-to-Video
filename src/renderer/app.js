@@ -16,7 +16,6 @@ window.addEventListener('error', (event) => {
 
 // State
 let files = [];
-let presets = [];
 let isConverting = false;
 let config = {};
 
@@ -61,11 +60,6 @@ const elements = {
   outputFolder: document.getElementById('outputFolder'),
   btnSelectOutput: document.getElementById('btnSelectOutput'),
   namingPattern: document.getElementById('namingPattern'),
-
-  // Animation settings
-  presetSelect: document.getElementById('presetSelect'),
-  customPromptGroup: document.getElementById('customPromptGroup'),
-  customPrompt: document.getElementById('customPrompt'),
 
   // Progress
   progressSection: document.getElementById('progressSection'),
@@ -116,10 +110,6 @@ const elements = {
   ttiOutputFolder: document.getElementById('ttiOutputFolder'),
   btnTTISelectFolder: document.getElementById('btnTTISelectFolder'),
   ttiConvertToVideo: document.getElementById('ttiConvertToVideo'),
-  ttiVideoPromptGroup: document.getElementById('ttiVideoPromptGroup'),
-  ttiVideoPreset: document.getElementById('ttiVideoPreset'),
-  ttiCustomVideoPromptGroup: document.getElementById('ttiCustomVideoPromptGroup'),
-  ttiCustomVideoPrompt: document.getElementById('ttiCustomVideoPrompt'),
   ttiProgressSection: document.getElementById('ttiProgressSection'),
   ttiProgressTotal: document.getElementById('ttiProgressTotal'),
   ttiProgressCompleted: document.getElementById('ttiProgressCompleted'),
@@ -237,7 +227,8 @@ const elements = {
   upscaleProgressCompleted: document.getElementById('upscaleProgressCompleted'),
   upscaleProgressTotal: document.getElementById('upscaleProgressTotal'),
   upscaleProgressStatus: document.getElementById('upscaleProgressStatus'),
-  upscaleProgressBar: document.getElementById('upscaleProgressBar')
+  upscaleProgressBar: document.getElementById('upscaleProgressBar'),
+
 };
 
 // Gallery State
@@ -299,9 +290,6 @@ async function init() {
   config = await window.api.loadConfig();
   applyConfig(config);
 
-  // Load presets
-  presets = await window.api.getPresets();
-  populatePresets();
 
   // Check for resume data
   const resumeData = await window.api.getResumeData();
@@ -328,7 +316,6 @@ function applyConfig(cfg) {
   if (cfg['x-userid']) elements.cookieUserId.value = cfg['x-userid'];
   if (cfg.outputFolder) elements.outputFolder.value = cfg.outputFolder;
   if (cfg.namingPattern) elements.namingPattern.value = cfg.namingPattern;
-  if (cfg.prompt) elements.customPrompt.value = cfg.prompt;
   if (cfg.delayBetween) elements.settingDelay.value = cfg.delayBetween;
   if (cfg.retryAttempts) elements.settingRetries.value = cfg.retryAttempts;
   if (cfg.headless !== undefined) elements.settingHeadless.checked = cfg.headless;
@@ -347,6 +334,13 @@ function applyConfig(cfg) {
     elements.upscaleOutputFolder.value = cfg.outputFolder;
   }
 
+  // TTV config - use same output folder by default
+  if (cfg.ttvOutputFolder) {
+    if (elements.ttvOutputFolder) elements.ttvOutputFolder.value = cfg.ttvOutputFolder;
+  } else if (cfg.outputFolder) {
+    if (elements.ttvOutputFolder) elements.ttvOutputFolder.value = cfg.outputFolder;
+  }
+
   // Video Editor config - use same output folder by default
   const videoOutputEl = document.getElementById('videoOutputFolder');
   if (videoOutputEl) {
@@ -358,14 +352,6 @@ function applyConfig(cfg) {
   }
 }
 
-function populatePresets() {
-  elements.presetSelect.innerHTML = presets.map(p =>
-    `<option value="${p.id}">${p.name}</option>`
-  ).join('');
-
-  // Set initial visibility of custom prompt
-  toggleCustomPrompt();
-}
 
 // ============================================
 // Event Listeners
@@ -414,11 +400,11 @@ function setupEventListeners() {
     const folder = await window.api.selectFolder('output');
     if (folder) {
       elements.outputFolder.value = folder;
+      const cfg = await window.api.loadConfig();
+      cfg.outputFolder = folder;
+      await window.api.saveConfig(cfg);
     }
   });
-
-  // Preset selection
-  elements.presetSelect.addEventListener('change', toggleCustomPrompt);
 
   // Action buttons
   elements.btnStart.addEventListener('click', startConversion);
@@ -521,24 +507,6 @@ function setupTTIEventListeners() {
     });
   }
 
-  // Convert to video checkbox - disabled in Grok version
-  if (elements.ttiConvertToVideo) {
-    elements.ttiConvertToVideo.addEventListener('change', () => {
-      if (elements.ttiVideoPromptGroup) {
-        elements.ttiVideoPromptGroup.style.display = elements.ttiConvertToVideo.checked ? 'block' : 'none';
-      }
-    });
-  }
-
-  // Video preset selection - disabled in Grok version
-  if (elements.ttiVideoPreset) {
-    elements.ttiVideoPreset.addEventListener('change', () => {
-      if (elements.ttiCustomVideoPromptGroup) {
-        elements.ttiCustomVideoPromptGroup.style.display =
-          elements.ttiVideoPreset.value === 'custom' ? 'block' : 'none';
-      }
-    });
-  }
 
   // Start/Stop TTI generation - disabled in Grok version
   if (elements.btnStartTTI) elements.btnStartTTI.addEventListener('click', startTTIGeneration);
@@ -579,6 +547,9 @@ function setupTTVEventListeners() {
       const folder = await window.api.selectFolder('output');
       if (folder && elements.ttvOutputFolder) {
         elements.ttvOutputFolder.value = folder;
+        const cfg = await window.api.loadConfig();
+        cfg.ttvOutputFolder = folder;
+        await window.api.saveConfig(cfg);
       }
     });
   }
@@ -865,7 +836,8 @@ async function addFiles(paths) {
           name,
           path: filePath,
           status: 'pending',
-          progress: 0
+          progress: 0,
+          prompt: ''
         });
       }
     }
@@ -880,7 +852,8 @@ async function addFilesFromScan(scannedFiles) {
       files.push({
         ...file,
         status: 'pending',
-        progress: 0
+        progress: 0,
+        prompt: ''
       });
     }
   }
@@ -945,6 +918,7 @@ async function renderFileGrid() {
       }
     });
   });
+
 }
 
 function getStatusIcon(status) {
@@ -1362,7 +1336,9 @@ async function saveSettings() {
     retryAttempts: parseInt(elements.settingRetries.value),
     headless: elements.settingHeadless.checked,
     upscaleOutputFolder: elements.upscaleOutputFolder?.value || '',
-    ttiOutputFolder: elements.ttiOutputFolder?.value || ''
+    ttiOutputFolder: elements.ttiOutputFolder?.value || '',
+    ttvOutputFolder: elements.ttvOutputFolder?.value || '',
+    videoOutputFolder: document.getElementById('videoOutputFolder')?.value || ''
   };
 
   await window.api.saveConfig(cfg);
@@ -1389,10 +1365,6 @@ async function clearCookies() {
   }
 }
 
-function toggleCustomPrompt() {
-  const isCustom = elements.presetSelect.value === 'custom';
-  elements.customPromptGroup.style.display = isCustom ? 'block' : 'none';
-}
 
 // ============================================
 // Video Preview
@@ -1589,17 +1561,6 @@ async function startTTIGeneration() {
   const selectedPreset = ttiPresets.find(p => p.id === elements.ttiStylePreset?.value);
   const stylePrefix = selectedPreset?.prefix || '';
 
-  // Get video prompt if enabled
-  let videoPrompt = '';
-  if (elements.ttiConvertToVideo?.checked) {
-    if (elements.ttiVideoPreset?.value === 'custom') {
-      videoPrompt = elements.ttiCustomVideoPrompt?.value || '';
-    } else {
-      const videoPreset = presets.find(p => p.id === elements.ttiVideoPreset?.value);
-      videoPrompt = videoPreset?.prompt || 'Animate with smooth cinematic motion';
-    }
-  }
-
   const result = await window.api.startTTIGeneration({
     cookies: {
       sso: elements.cookieSso.value,
@@ -1610,8 +1571,7 @@ async function startTTIGeneration() {
     aspectRatio: selectedRatio,
     outputFolder: elements.ttiOutputFolder.value,
     stylePrefix,
-    convertToVideo: elements.ttiConvertToVideo.checked,
-    videoPrompt,
+    convertToVideo: elements.ttiConvertToVideo?.checked || false,
     delayBetween: parseInt(elements.settingDelay.value) || 30,
     retryAttempts: parseInt(elements.settingRetries.value) || 3,
     headless: elements.settingHeadless.checked
@@ -2599,6 +2559,9 @@ function setupUpscaleEventListeners() {
     const folder = await window.api.selectFolder('output');
     if (folder) {
       elements.upscaleOutputFolder.value = folder;
+      const cfg = await window.api.loadConfig();
+      cfg.upscaleOutputFolder = folder;
+      await window.api.saveConfig(cfg);
     }
   });
 
@@ -2821,7 +2784,6 @@ setupImageEditorEventListeners();
 setupUpscaleEventListeners();
 initCompareSlider();
 setupVideoEditorEventListeners();
-
 // ============================================
 // Video Editor Functions
 // ============================================
@@ -3354,4 +3316,5 @@ function handleVideoExportProgress(data) {
     progressPercent.textContent = `${Math.round(data.percent || 0)}%`;
   }
 }
+
 

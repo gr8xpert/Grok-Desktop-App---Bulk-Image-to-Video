@@ -25,9 +25,8 @@
     <header class="titlebar">
       <div class="titlebar-drag">
         <div class="app-logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="23 7 16 12 23 17 23 7"/>
-            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
           </svg>
           <span>Grok</span>
         </div>
@@ -136,22 +135,6 @@
                 <label>Naming Pattern</label>
                 <input type="text" id="namingPattern" value="{name}.mp4" placeholder="{name}.mp4">
                 <span class="input-hint">Use {name} for original name, {index} for number</span>
-              </div>
-            </div>
-
-            <!-- Animation Settings -->
-            <div class="control-section">
-              <h3>Animation</h3>
-              <div class="input-group">
-                <label>Preset</label>
-                <select id="presetSelect">
-                  <option value="cinematic">Cinematic</option>
-                  <option value="custom">Custom Prompt</option>
-                </select>
-              </div>
-              <div class="input-group" id="customPromptGroup">
-                <label>Custom Prompt</label>
-                <textarea id="customPrompt" rows="3" placeholder="Describe the animation style..."></textarea>
               </div>
             </div>
 
@@ -420,25 +403,6 @@
                 Auto-add to Video Editor when complete
               </label>
 
-              <div id="ttiVideoPromptGroup" class="tti-video-options" style="display: none;">
-                <div class="input-group">
-                  <label>Video Animation Preset</label>
-                  <select id="ttiVideoPreset">
-                    <option value="cinematic">Cinematic</option>
-                    <option value="zoom-in">Zoom In</option>
-                    <option value="zoom-out">Zoom Out</option>
-                    <option value="pan-left">Pan Left</option>
-                    <option value="pan-right">Pan Right</option>
-                    <option value="parallax">Parallax</option>
-                    <option value="float">Floating</option>
-                    <option value="custom">Custom</option>
-                  </select>
-                </div>
-                <div class="input-group" id="ttiCustomVideoPromptGroup" style="display: none;">
-                  <label>Custom Video Prompt</label>
-                  <textarea id="ttiCustomVideoPrompt" rows="2" placeholder="Describe the animation..."></textarea>
-                </div>
-              </div>
             </div>
 
             <!-- Progress Section -->

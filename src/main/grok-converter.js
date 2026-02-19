@@ -313,8 +313,6 @@ class GrokConverter {
         await fileInput.setInputFiles(imagePath);
         await this.page.waitForTimeout(2000);
         console.log('[GROK] Upload done via direct file input');
-
-        // After upload, click the generate/send button
         await this._clickGenerateButton();
         return true;
       }
@@ -323,12 +321,10 @@ class GrokConverter {
     }
 
     // Method 2: Click Image button to open menu, then Upload
-    // First, look for the Image button/dropdown trigger
     const triggerSelectors = [
       'button:has-text("Image")',
       '[aria-haspopup="menu"]',
       'button[aria-expanded]',
-      // The button with image icon in the input area
       'button:has(svg[viewBox])',
     ];
 
@@ -343,14 +339,11 @@ class GrokConverter {
             await trigger.click();
             await this.page.waitForTimeout(800);
 
-            // Check if menu opened
             const menu = this.page.locator('[role="menu"]');
             if (await menu.count() > 0 && await menu.isVisible()) {
               console.log(`[GROK] Menu opened via: ${selector}`);
 
-              // Click upload option
               if (await this._clickUploadOption()) {
-                // Wait for file chooser
                 const [fileChooser] = await Promise.all([
                   this.page.waitForEvent('filechooser', { timeout: 5000 }),
                 ]).catch(() => [null]);
@@ -363,7 +356,6 @@ class GrokConverter {
                   return true;
                 }
 
-                // Try direct input again after menu click
                 const fileInput = this.page.locator('input[type="file"]').first();
                 if (await fileInput.count() > 0) {
                   await fileInput.setInputFiles(imagePath);
@@ -381,8 +373,7 @@ class GrokConverter {
       }
     }
 
-    // Method 3: Use keyboard shortcut or drag-drop simulation
-    // Try setting files on any visible file input
+    // Method 3: Generic setInputFiles
     try {
       await this.page.setInputFiles('input[type="file"]', imagePath);
       await this.page.waitForTimeout(2000);
@@ -606,6 +597,69 @@ class GrokConverter {
     }
   }
 
+  async _typePrompt(prompt) {
+    console.log(`[GROK] Typing prompt: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
+
+    // Wait for textarea to be ready
+    await this.page.waitForTimeout(1500);
+
+    const inputSelectors = [
+      'textarea[placeholder="Type to imagine"]',
+      'textarea[aria-label="Ask Grok anything"]',
+      'textarea[placeholder*="imagine" i]',
+      'textarea[placeholder*="type" i]',
+      'textarea[placeholder*="customiz" i]',
+      'div[contenteditable="true"]',
+      'textarea'
+    ];
+
+    for (const selector of inputSelectors) {
+      try {
+        const input = this.page.locator(selector).first();
+        if (await input.count() > 0 && await input.isVisible()) {
+          // Method 1: Use React native value setter + event dispatch
+          const reactSet = await this.page.evaluate(({ sel, text }) => {
+            const el = document.querySelector(sel);
+            if (!el) return false;
+            el.focus();
+            // Use native setter to bypass React's value tracking
+            const nativeSetter = Object.getOwnPropertyDescriptor(
+              window.HTMLTextAreaElement.prototype, 'value'
+            ).set;
+            nativeSetter.call(el, text);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            return el.value === text;
+          }, { sel: selector, text: prompt });
+
+          if (reactSet) {
+            console.log(`[GROK] Set prompt via React native setter into: ${selector}`);
+            await this.page.waitForTimeout(500);
+            return true;
+          }
+
+          // Method 2: Click + keyboard type as fallback
+          await input.click();
+          await this.page.waitForTimeout(300);
+          await this.page.keyboard.press('Control+a');
+          await this.page.keyboard.press('Backspace');
+          await this.page.waitForTimeout(200);
+          await this.page.keyboard.type(prompt, { delay: 30 });
+
+          console.log(`[GROK] Typed prompt via keyboard into: ${selector}`);
+          await this.page.waitForTimeout(500);
+          return true;
+        }
+      } catch (e) {
+        console.log(`[GROK] _typePrompt selector failed (${selector}):`, e.message);
+        continue;
+      }
+    }
+
+    console.log('[GROK] Could not find text input field for prompt');
+    return false;
+  }
+
   async _clickGenerateButton() {
     console.log('[GROK] Looking for generate/send button...');
     await this.page.waitForTimeout(1000);
@@ -613,9 +667,11 @@ class GrokConverter {
     // Try various selectors for the generate/send button
     const generateSelectors = [
       'button[type="submit"]',
+      'button:has-text("Make video")',
       'button:has-text("Generate")',
       'button:has-text("Send")',
       'button:has-text("Create")',
+      'button:has-text("Redo")',
       '[aria-label*="send" i]',
       '[aria-label*="submit" i]',
       '[aria-label*="generate" i]',
@@ -961,7 +1017,13 @@ class GrokConverter {
     return await this._downloadWithRetry(videoUrl, outputPath, 3);
   }
 
-  async convert(imagePath, outputPath, progressCallback) {
+  async convert(imagePath, outputPath, prompt, progressCallback) {
+    // Support old signature: convert(imagePath, outputPath, progressCallback)
+    if (typeof prompt === 'function') {
+      progressCallback = prompt;
+      prompt = '';
+    }
+
     const result = {
       success: false,
       videoUrl: null,
@@ -994,6 +1056,10 @@ class GrokConverter {
           update('Opening fresh tab...', 5);
           await this._navigateToImagine();
         }
+
+        // Select Video mode (Grok defaults to Image mode on /imagine)
+        update('Selecting video mode...', 10);
+        await this._selectVideoMode();
 
         update('Uploading image...', 20);
         if (!await this._uploadImage(imagePath)) {
@@ -1412,34 +1478,9 @@ class GrokConverter {
 
       // Step 2: Enter the text prompt
       update('Entering prompt...', 15);
-      const inputSelectors = [
-        'textarea[placeholder*="imagine" i]',
-        'textarea[placeholder*="type" i]',
-        'div[contenteditable="true"]',
-        'textarea'
-      ];
-
-      let inputFound = false;
-      for (const selector of inputSelectors) {
-        try {
-          const input = this.page.locator(selector).first();
-          if (await input.count() > 0 && await input.isVisible()) {
-            await input.click();
-            await input.fill(prompt);
-            console.log(`[GROK] Entered text prompt via: ${selector}`);
-            inputFound = true;
-            break;
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-
-      if (!inputFound) {
+      if (!await this._typePrompt(prompt)) {
         throw new Error('Could not find text input field');
       }
-
-      await this.page.waitForTimeout(500);
 
       // Step 3: Click generate button
       update('Starting video generation...', 20);
