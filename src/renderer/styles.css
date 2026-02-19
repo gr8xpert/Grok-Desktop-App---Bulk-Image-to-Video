@@ -566,6 +566,11 @@ body {
   flex-direction: column;
   justify-content: flex-end;
   padding: var(--space-sm);
+  pointer-events: none;
+}
+
+.file-overlay .file-name {
+  pointer-events: auto;
 }
 
 .file-name {

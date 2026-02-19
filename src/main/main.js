@@ -8,6 +8,14 @@ const { GrokConverter } = require('./grok-converter');
 const { Database } = require('./database');
 const VideoEditor = require('./video-editor');
 
+// Handle EPIPE errors gracefully (happens when browser process dies mid-write)
+process.stdout.on('error', (err) => {
+  if (err.code === 'EPIPE') return; // Silently ignore broken pipe
+});
+process.stderr.on('error', (err) => {
+  if (err.code === 'EPIPE') return;
+});
+
 // ============ Shared Helpers ============
 
 // Sanitize text for safe SVG embedding (prevent XML injection)
@@ -278,7 +286,7 @@ ipcMain.handle('validate-cookies', async (event, cookies) => {
 
 // Start conversion
 ipcMain.handle('start-conversion', async (event, options) => {
-  const { cookies, files, outputFolder, prompt, namingPattern, delayBetween, retryAttempts, headless } = options;
+  const { cookies, files, outputFolder, namingPattern, delayBetween, retryAttempts, headless } = options;
 
   if (converter) {
     return { success: false, error: 'Conversion already in progress' };
@@ -327,7 +335,7 @@ ipcMain.handle('start-conversion', async (event, options) => {
             inputPath: file.path,
             outputPath,
             status: 'skipped',
-            prompt
+            prompt: file.prompt || ''
           });
           continue;
         }
@@ -338,7 +346,7 @@ ipcMain.handle('start-conversion', async (event, options) => {
           file: file.name
         });
 
-        const result = await converter.convert(file.path, outputPath, (stage, percent) => {
+        const result = await converter.convert(file.path, outputPath, file.prompt || '', (stage, percent) => {
           mainWindow.webContents.send('conversion-progress', {
             type: 'file-progress',
             index: i,
@@ -354,7 +362,7 @@ ipcMain.handle('start-conversion', async (event, options) => {
           outputPath,
           status: result.success ? 'success' : (result.downloadFailed ? 'download_failed' : 'failed'),
           error: result.error,
-          prompt,
+          prompt: file.prompt || '',
           attempts: result.attempts,
           videoUrl: result.videoUrl
         });
@@ -585,22 +593,6 @@ ipcMain.handle('file-exists', async (event, filePath) => {
   return fs.existsSync(filePath);
 });
 
-// Get prompt presets
-ipcMain.handle('get-presets', async () => {
-  return [
-    { id: 'cinematic', name: 'Cinematic', prompt: 'Animate with smooth cinematic motion, dramatic camera movement' },
-    { id: 'zoom-in', name: 'Zoom In', prompt: 'Slowly zoom into the center with subtle motion' },
-    { id: 'zoom-out', name: 'Zoom Out', prompt: 'Slowly zoom out revealing more of the scene' },
-    { id: 'pan-left', name: 'Pan Left', prompt: 'Smooth horizontal pan from right to left' },
-    { id: 'pan-right', name: 'Pan Right', prompt: 'Smooth horizontal pan from left to right' },
-    { id: 'parallax', name: 'Parallax', prompt: 'Create depth with parallax effect, foreground and background moving at different speeds' },
-    { id: 'float', name: 'Floating', prompt: 'Gentle floating motion, dreamlike and ethereal' },
-    { id: 'dramatic', name: 'Dramatic', prompt: 'Dramatic slow motion with intense atmosphere' },
-    { id: 'nature', name: 'Nature', prompt: 'Natural movement like wind, water, or wildlife' },
-    { id: 'portrait', name: 'Portrait', prompt: 'Subtle life-like motion for portraits, breathing, blinking' },
-    { id: 'custom', name: 'Custom', prompt: '' }
-  ];
-});
 
 // Window controls
 ipcMain.handle('minimize-window', () => {
@@ -668,7 +660,7 @@ ipcMain.handle('import-prompts-file', async () => {
 
 // Start TTI generation
 ipcMain.handle('start-tti-generation', async (event, options) => {
-  const { cookies, prompts, aspectRatio, outputFolder, stylePrefix, convertToVideo, videoPrompt, delayBetween, retryAttempts, headless } = options;
+  const { cookies, prompts, aspectRatio, outputFolder, stylePrefix, convertToVideo, delayBetween, retryAttempts, headless } = options;
 
   if (ttiConverter) {
     return { success: false, error: 'TTI generation already in progress' };
@@ -752,7 +744,7 @@ ipcMain.handle('start-tti-generation', async (event, options) => {
 
           // Use the same converter to convert image to video
           const videoOutputPath = outputPath.replace(/\.png$/, '.mp4');
-          const videoResult = await ttiConverter.convert(outputPath, videoOutputPath, videoPrompt || 'Animate with smooth cinematic motion', (stage, percent) => {
+          const videoResult = await ttiConverter.convert(outputPath, videoOutputPath, '', (stage, percent) => {
             mainWindow.webContents.send('tti-progress', {
               type: 'prompt-video-progress',
               index: i,
